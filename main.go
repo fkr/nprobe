@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -102,18 +103,19 @@ func main() {
 				log.Fatalf("unable to decode into struct, %v", err)
 			}
 
-			for {
-				for _, k := range targets {
-					go HandleProbe(k, *masterPtr, *probeNamePtr)
-				}
-				time.Sleep(60 * time.Second)
+			var wg sync.WaitGroup
+
+			for _, k := range targets {
+				wg.Add(1)
+				go HandleProbe(k, *masterPtr, *probeNamePtr, wg)
 			}
+			wg.Wait()
 		}
 	}
 
 }
 
-func HandleProbe(k Target, master string, probeName string) {
+func HandleProbe(k Target, master string, probeName string, wg sync.WaitGroup) {
 	for {
 		if k.ProbeType == "icmp" {
 			r := probeIcmp(k.Host, k.Probes)
@@ -136,8 +138,9 @@ func HandleProbe(k Target, master string, probeName string) {
 
 			log.Printf("%+v", body)
 		}
-		time.Sleep(((time.Duration)k.Intervall * time.Second))
+		time.Sleep(time.Duration(k.Intervall) * time.Second)
 	}
+	defer wg.Done()
 }
 
 func GetProbe(w http.ResponseWriter, r *http.Request) {
