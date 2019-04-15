@@ -9,6 +9,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sparrc/go-ping"
 	"github.com/spf13/viper"
+	"github.com/tcnksm/go-httpstat"
+	"golang.org/x/tools/container/intsets"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -117,27 +120,32 @@ func main() {
 
 func HandleProbe(k Target, master string, probeName string, wg sync.WaitGroup) {
 	for {
+
+		var r = ResponsePacket{}
+
 		if k.ProbeType == "icmp" {
-			r := probeIcmp(k.Host, k.Probes)
-			r.TargetName = k.Name
-			r.ProbeType = k.ProbeType
-			r.ProbeName = probeName
-
-			url := master + "targets/" + k.Name
-
-			log.Printf("url: %s", url)
-
-			jsonValue, _ := json.Marshal(r)
-			request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
-			request2.Header.Set("X-Authorisation", os.Getenv("PROBE_SECRET"))
-			client2 := &http.Client{}
-			body, err := client2.Do(request2)
-			if err != nil {
-				fmt.Printf("The HTTP request failed with error %s\n", err)
-			}
-
-			log.Printf("%+v", body)
+			r = probeIcmp(k.Host, k.Probes)
 		}
+		if k.ProbeType == "http" {
+			r = probeHttp(k.Host, k.Probes)
+		}
+		r.TargetName = k.Name
+		r.ProbeType = k.ProbeType
+		r.ProbeName = probeName
+
+		url := master + "targets/" + k.Name
+
+		jsonValue, _ := json.Marshal(r)
+		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
+		request2.Header.Set("X-Authorisation", os.Getenv("PROBE_SECRET"))
+		client2 := &http.Client{}
+		body, err := client2.Do(request2)
+		if err != nil {
+			fmt.Printf("The HTTP request failed with error %s\n", err)
+		}
+
+		log.Printf("%+v", body)
+
 		time.Sleep(time.Duration(k.Intervall) * time.Second)
 	}
 	defer wg.Done()
@@ -178,23 +186,69 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 func probeIcmp(hostname string, probes int) ResponsePacket {
 	pinger, err := ping.NewPinger(hostname)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Pinger error: %s\n", err)
 	}
 	pinger.Count = probes
 	pinger.Run() // blocks until finished
 	stats := pinger.Statistics() // get send/receive/rtt stats
 
-	r := ResponsePacket{MinRTT: stats.MinRtt.Nanoseconds(),
-						MaxRTT: stats.MaxRtt.Nanoseconds(),
-						Median: stats.AvgRtt.Nanoseconds(),
+	r := ResponsePacket{MinRTT: stats.MinRtt.Nanoseconds()/1000000,
+						MaxRTT: stats.MaxRtt.Nanoseconds()/1000000,
+						Median: stats.AvgRtt.Nanoseconds()/1000000,
 						NumProbes: probes}
 
 	return r
 }
 
-/*
 
-func probeHttp(url string, probes int) {
+func probeHttp(url string, probes int) ResponsePacket {
+	i := 0
 
+	min := intsets.MaxInt
+	max := 0
+	avg := 0
+
+	for {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// Create a httpstat powered context
+		var result httpstat.Result
+		ctx := httpstat.WithHTTPStat(req.Context(), &result)
+		req = req.WithContext(ctx)
+		// Send request by default HTTP client
+		client := http.DefaultClient
+		res, err := client.Do(req)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+			log.Fatal(err)
+		}
+		res.Body.Close()
+
+		con := int(result.TCPConnection/time.Millisecond)
+
+		if con < min {
+			min = con
+		}
+		if con > max {
+			max = con
+		}
+		avg+= con
+
+		i++
+		if (i == probes) {
+			avg= avg/probes
+			break
+		}
+	}
+
+	r := ResponsePacket{MinRTT: int64(min),
+						MaxRTT: int64(max),
+						Median: int64(avg),
+						NumProbes: probes}
+
+	return r
 }
- */
