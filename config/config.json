@@ -1,0 +1,24 @@
+{
+  "probes": [{
+    "name": "localhost-probe",
+    "secret": "foo",
+    "targets": ["vpn", "hazardous"]
+  }],
+  "targets": {
+    "vpn": {
+      "name": "vpn",
+      "host": "vpn.hazardous.org",
+      "probe_type": "icmp",
+      "probes": 5,
+      "intervall": 120
+    },
+    "hazardous": {
+      "name": "hazardous",
+      "host": "hazardous.org",
+      "probe_type": "icmp",
+      "probes": 5,
+      "intervall": 120
+    }
+  }
+}
+
