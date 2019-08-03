@@ -1,6 +1,5 @@
 package main
 
-import "C"
 import (
 	"bytes"
 	"encoding/json"
@@ -103,7 +102,7 @@ func main() {
 			log.Printf("Received targets: %+v", targets)
 
 			if err != nil {
-				log.Fatalf("unable to decode into struct, %v", err)
+				fmt.Printf("Unmarshal error: %s", err)
 			}
 
 			var wg sync.WaitGroup
