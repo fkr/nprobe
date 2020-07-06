@@ -122,6 +122,9 @@ func HandleProbe(k Target, master string, probeName string, wg sync.WaitGroup) {
 
 		var r = ResponsePacket{}
 
+		if k.ProbeType != "icmp" && k.ProbeType != "http" {
+			r = runExternalProbe(k.Host, k.Probes, k.ProbeType)
+		}
 		if k.ProbeType == "icmp" {
 			r = probeIcmp(k.Host, k.Probes)
 		}
@@ -247,6 +250,17 @@ func probeHttp(url string, probes int) ResponsePacket {
 	r := ResponsePacket{MinRTT: int64(min),
 						MaxRTT: int64(max),
 						Median: int64(avg),
+						NumProbes: probes}
+
+	return r
+}
+
+func runExternalProbe(host string, probes int, probe string) ResponsePacket {
+
+
+	r := ResponsePacket{MinRTT: int64(0),
+						MaxRTT: int64(0),
+						Median: int64(0),
 						NumProbes: probes}
 
 	return r
