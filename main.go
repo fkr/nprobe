@@ -5,11 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/sparrc/go-ping"
-	"github.com/spf13/viper"
-	"github.com/tcnksm/go-httpstat"
-	"golang.org/x/tools/container/intsets"
 	"io"
 	"io/ioutil"
 	"log"
@@ -17,44 +12,51 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/go-ping/ping"
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+	"github.com/tcnksm/go-httpstat"
+	"golang.org/x/tools/container/intsets"
 )
 
 type Configuration struct {
-	Probes []Probe `mapstructure:"probes"`
+	Probes  []Probe           `mapstructure:"probes"`
 	Targets map[string]Target `mapstructure:"targets"`
 }
 
 type Probe struct {
-	Name string `mapstructure:"name"`
-	Secret string `mapstructure:"secret"`
+	Name    string   `mapstructure:"name"`
+	Secret  string   `mapstructure:"secret"`
 	Targets []string `mapstructure:"targets"`
 }
 
 type Target struct {
-	Name string `mapstructur:"name"`
-	Host string `mapstructure:"host"`
+	Name      string `mapstructur:"name"`
+	Host      string `mapstructure:"host"`
 	ProbeType string `mapstructure:"probe_type"`
-	Probes int `mapstructure:"probes"`
-	Intervall int `mapstructure:"intervall"`
+	Probes    int    `mapstructure:"probes"`
+	Intervall int    `mapstructure:"intervall"`
 }
 
 type ResponsePacket struct {
-      ProbeName string
-      TargetName string
-      ProbeType string
-      MinRTT int64
-      MaxRTT int64
-      Median int64
-      NumProbes int
+	ProbeName  string
+	TargetName string
+	ProbeType  string
+	MinRTT     int64
+	MaxRTT     int64
+	Median     int64
+	NumProbes  int
 }
 
 var Config Configuration
 
 func main() {
 
-	configPtr 	:= flag.String("config", "config", "config file")
-	modePtr 	:= flag.String("mode", "master", "slave / master")
-	masterPtr 	:= flag.String("master", "", "fqdn / ip of master server")
+	configPtr := flag.String("config", "config", "config file")
+	modePtr := flag.String("mode", "master", "slave / master")
+	masterPtr := flag.String("master", "", "fqdn / ip of master server")
 	probeNamePtr := flag.String("name", "", "name of probe")
 
 	flag.Parse()
@@ -62,11 +64,11 @@ func main() {
 	fmt.Println("config:", *configPtr)
 	fmt.Println("mode:", *modePtr)
 
-	if (*modePtr == "master") {
+	if *modePtr == "master" {
 
 		viper.Set("Verbose", true)
 		viper.SetConfigName(*configPtr) // name of config file (without extension)
-		viper.AddConfigPath("./config")               // optionally look for config in the working directory
+		viper.AddConfigPath("./config") // optionally look for config in the working directory
 		viper.SetConfigType("json")
 		err := viper.ReadInConfig() // Find and read the config file
 
@@ -88,7 +90,7 @@ func main() {
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
 		log.Fatal(http.ListenAndServe(":8000", router))
 	} else {
-		request, _ := http.NewRequest("GET", *masterPtr + "probes/" + *probeNamePtr,nil)
+		request, _ := http.NewRequest("GET", *masterPtr+"probes/"+*probeNamePtr, nil)
 		request.Header.Set("X-Authorisation", os.Getenv("NPROBE_SECRET"))
 		client := &http.Client{}
 		response, err := client.Do(request)
@@ -155,14 +157,14 @@ func HandleProbe(k Target, master string, probeName string, wg sync.WaitGroup) {
 
 func GetProbe(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	for _, probe := range Config.Probes  {
+	for _, probe := range Config.Probes {
 		if probe.Name == params["name"] && r.Header.Get("X-Authorisation") == probe.Secret {
 
 			var targets []Target = make([]Target, len(probe.Targets))
 
-			var i = 0;
+			var i = 0
 
-			for _, k  := range probe.Targets {
+			for _, k := range probe.Targets {
 				targets[i] = Config.Targets[k]
 				i++
 			}
@@ -172,7 +174,6 @@ func GetProbe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-
 
 func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -191,17 +192,16 @@ func probeIcmp(hostname string, probes int) ResponsePacket {
 		fmt.Printf("Pinger error: %s\n", err)
 	}
 	pinger.Count = probes
-	pinger.Run() // blocks until finished
+	pinger.Run()                 // blocks until finished
 	stats := pinger.Statistics() // get send/receive/rtt stats
 
-	r := ResponsePacket{MinRTT: stats.MinRtt.Nanoseconds()/1000000,
-						MaxRTT: stats.MaxRtt.Nanoseconds()/1000000,
-						Median: stats.AvgRtt.Nanoseconds()/1000000,
-						NumProbes: probes}
+	r := ResponsePacket{MinRTT: stats.MinRtt.Nanoseconds() / 1000000,
+		MaxRTT:    stats.MaxRtt.Nanoseconds() / 1000000,
+		Median:    stats.AvgRtt.Nanoseconds() / 1000000,
+		NumProbes: probes}
 
 	return r
 }
-
 
 func probeHttp(url string, probes int) ResponsePacket {
 	i := 0
@@ -230,7 +230,7 @@ func probeHttp(url string, probes int) ResponsePacket {
 		}
 		res.Body.Close()
 
-		con := int(result.TCPConnection/time.Millisecond)
+		con := int(result.TCPConnection / time.Millisecond)
 
 		if con < min {
 			min = con
@@ -238,30 +238,29 @@ func probeHttp(url string, probes int) ResponsePacket {
 		if con > max {
 			max = con
 		}
-		avg+= con
+		avg += con
 
 		i++
-		if (i == probes) {
-			avg= avg/probes
+		if i == probes {
+			avg = avg / probes
 			break
 		}
 	}
 
 	r := ResponsePacket{MinRTT: int64(min),
-						MaxRTT: int64(max),
-						Median: int64(avg),
-						NumProbes: probes}
+		MaxRTT:    int64(max),
+		Median:    int64(avg),
+		NumProbes: probes}
 
 	return r
 }
 
 func runExternalProbe(host string, probes int, probe string) ResponsePacket {
 
-
 	r := ResponsePacket{MinRTT: int64(0),
-						MaxRTT: int64(0),
-						Median: int64(0),
-						NumProbes: probes}
+		MaxRTT:    int64(0),
+		Median:    int64(0),
+		NumProbes: probes}
 
 	return r
 }
