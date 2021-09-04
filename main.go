@@ -139,7 +139,7 @@ func HandleProbe(k Target, master string, probeName string, wg sync.WaitGroup) {
 
 		jsonValue, _ := json.Marshal(r)
 		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
-		request2.Header.Set("X-Authorisation", os.Getenv("PROBE_SECRET"))
+		request2.Header.Set("X-Authorisation", os.Getenv("NPROBE_SECRET"))
 		client2 := &http.Client{}
 		body, err := client2.Do(request2)
 		if err != nil {
