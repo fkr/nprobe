@@ -8,7 +8,9 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -23,6 +25,17 @@ import (
 type Configuration struct {
 	Probes  []Probe           `mapstructure:"probes"`
 	Targets map[string]Target `mapstructure:"targets"`
+}
+
+type ErrorResponse struct {
+	Errors []*ErrorPacket `json:"errors"`
+}
+
+type ErrorPacket struct {
+	Status string `json:"status"`
+	Source string `json:"source"`
+	Title  string `json:"title"`
+	Detail string `json:"detail"`
 }
 
 type Probe struct {
@@ -85,6 +98,11 @@ func main() {
 		parseConfig(configPtr)
 
 		router := mux.NewRouter()
+
+		// make use of our middleware to set content type and such
+		router.Use(commonMiddleware)
+
+		router.HandleFunc("/version", VersionRequest).Methods("GET")
 		router.HandleFunc("/probes/{name}", GetProbe).Methods("GET")
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
 		log.Fatal(http.ListenAndServe(":8000", router))
@@ -262,6 +280,44 @@ func runExternalProbe(host string, probes int, probe string) ResponsePacket {
 		NumProbes: probes}
 
 	return r
+}
+
+func handleError(w http.ResponseWriter, status int, source string, title string, err error) {
+	errorResponse := ErrorResponse{Errors: []*ErrorPacket{
+		&ErrorPacket{
+			Status: strconv.Itoa(status),
+			Source: source,
+			Title:  title,
+			Detail: fmt.Sprintf("%v", err)}}}
+
+	e, _ := json.Marshal(errorResponse)
+
+	http.Error(w, string(e[:]), status)
+}
+
+func commonMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		dumpRequest(r)
+		w.Header().Add("Content-Type", "application/vnd.api+json")
+		w.Header().Add("X-Api-Version", apiVersion)
+		w.Header().Add("X-Powered-By", "nprobe")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func VersionRequest(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\" }", version)))
+}
+
+func dumpRequest(r *http.Request) {
+	if log.GetLevel() == log.DebugLevel {
+		requestDump, err := httputil.DumpRequest(r, true)
+		if err != nil {
+			log.Errorf("Failed to dump http request '%s", err)
+		} else {
+			log.Debugf("%s", string(requestDump))
+		}
+	}
 }
 
 func parseConfig(configPtr *string) {
