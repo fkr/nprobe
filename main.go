@@ -44,14 +44,6 @@ type Probe struct {
 	Targets []string `mapstructure:"targets"`
 }
 
-type Target struct {
-	Name      string `mapstructur:"name"`
-	Host      string `mapstructure:"host"`
-	ProbeType string `mapstructure:"probe_type"`
-	Probes    int    `mapstructure:"probes"`
-	Intervall int    `mapstructure:"intervall"`
-}
-
 type ResponsePacket struct {
 	ProbeName  string
 	TargetName string
@@ -60,6 +52,14 @@ type ResponsePacket struct {
 	MaxRTT     int64
 	Median     int64
 	NumProbes  int
+}
+
+type Target struct {
+	Name      string `mapstructur:"name"`
+	Host      string `mapstructure:"host"`
+	ProbeType string `mapstructure:"probe_type"`
+	Probes    int    `mapstructure:"probes"`
+	Intervall int    `mapstructure:"intervall"`
 }
 
 var Config Configuration
