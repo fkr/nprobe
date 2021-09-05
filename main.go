@@ -175,19 +175,25 @@ func HandleProbe(k Target, master string, probeName string, wg sync.WaitGroup) {
 func GetProbe(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	for _, probe := range Config.Probes {
-		if probe.Name == params["name"] && r.Header.Get("X-Authorization") == probe.Secret {
+		if probe.Name == params["name"] {
+			if r.Header.Get("X-Authorization") == probe.Secret {
 
-			var targets []Target = make([]Target, len(probe.Targets))
+				var targets []Target = make([]Target, len(probe.Targets))
 
-			var i = 0
+				var i = 0
 
-			for _, k := range probe.Targets {
-				targets[i] = Config.Targets[k]
-				i++
+				for _, k := range probe.Targets {
+					targets[i] = Config.Targets[k]
+					i++
+				}
+
+				json.NewEncoder(w).Encode(targets)
+				return
+			} else {
+				handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 			}
-
-			json.NewEncoder(w).Encode(targets)
-			return
+		} else {
+			handleError(w, http.StatusBadRequest, r.RequestURI, "Misformed payload", nil)
 		}
 	}
 }
