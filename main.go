@@ -65,7 +65,7 @@ func main() {
 
 	log.Printf("Running version: %s", version)
 
-	configPtr := flag.String("config", "config", "config file")
+	configPtr := flag.String("config", "config/config.json", "config file")
 	debugPtr := flag.Bool("debug", false, "enable debug mode")
 	modePtr := flag.String("mode", "master", "slave / master")
 	masterPtr := flag.String("master", "", "fqdn / ip of master server")
@@ -82,26 +82,7 @@ func main() {
 
 	if *modePtr == "master" {
 
-		if *debugPtr {
-			viper.Set("Verbose", true)
-		}
-		viper.SetConfigName(*configPtr) // name of config file (without extension)
-		viper.AddConfigPath("./config") // optionally look for config in the working directory
-		viper.SetConfigType("json")
-		err := viper.ReadInConfig() // Find and read the config file
-
-		if err != nil { // Handle errors reading the config file
-			panic(fmt.Errorf("Fatal error config file: %s \n", err))
-		}
-
-		fmt.Printf("Using config: %s\n", viper.ConfigFileUsed())
-
-		err = viper.Unmarshal(&Config)
-		if err != nil {
-			log.Fatalf("unable to decode into struct, %v", err)
-		}
-
-		fmt.Printf("%+v", Config)
+		parseConfig(configPtr)
 
 		router := mux.NewRouter()
 		router.HandleFunc("/probes/{name}", GetProbe).Methods("GET")
@@ -281,4 +262,24 @@ func runExternalProbe(host string, probes int, probe string) ResponsePacket {
 		NumProbes: probes}
 
 	return r
+}
+
+func parseConfig(configPtr *string) {
+	viper.Set("Verbose", true)
+	viper.SetConfigFile(*configPtr) // name of config file (without extension)
+	viper.SetConfigType("json")
+	err := viper.ReadInConfig() // Find and read the config file
+
+	if err != nil { // Handle errors reading the config file
+		log.Fatalf("Fatal error config file: %s \n", err)
+	}
+
+	log.Infof("Using config: %s\n", viper.ConfigFileUsed())
+
+	err = viper.Unmarshal(&Config)
+	if err != nil {
+		log.Fatalf("unable to decode into struct, %v", err)
+	}
+
+	log.Debugf("%+v", Config)
 }
