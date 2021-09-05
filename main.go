@@ -108,7 +108,7 @@ func main() {
 		log.Fatal(http.ListenAndServe(":8000", router))
 	} else {
 		request, _ := http.NewRequest("GET", *masterPtr+"probes/"+*probeNamePtr, nil)
-		request.Header.Set("X-Authorisation", os.Getenv("NPROBE_SECRET"))
+		request.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 		client := &http.Client{}
 		response, err := client.Do(request)
 		if err != nil {
@@ -158,7 +158,7 @@ func HandleProbe(k Target, master string, probeName string, wg sync.WaitGroup) {
 
 		jsonValue, _ := json.Marshal(r)
 		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
-		request2.Header.Set("X-Authorisation", os.Getenv("NPROBE_SECRET"))
+		request2.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 		client2 := &http.Client{}
 		body, err := client2.Do(request2)
 		if err != nil {
@@ -175,7 +175,7 @@ func HandleProbe(k Target, master string, probeName string, wg sync.WaitGroup) {
 func GetProbe(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	for _, probe := range Config.Probes {
-		if probe.Name == params["name"] && r.Header.Get("X-Authorisation") == probe.Secret {
+		if probe.Name == params["name"] && r.Header.Get("X-Authorization") == probe.Secret {
 
 			var targets []Target = make([]Target, len(probe.Targets))
 
