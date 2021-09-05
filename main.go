@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -52,21 +51,40 @@ type ResponsePacket struct {
 
 var Config Configuration
 
+const version = "0.0.1"
+const apiVersion = "0.0.1"
+
 func main() {
 
+	log.SetLevel(log.InfoLevel)
+
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
+	})
+
+	log.Printf("Running version: %s", version)
+
 	configPtr := flag.String("config", "config", "config file")
+	debugPtr := flag.Bool("debug", false, "enable debug mode")
 	modePtr := flag.String("mode", "master", "slave / master")
 	masterPtr := flag.String("master", "", "fqdn / ip of master server")
 	probeNamePtr := flag.String("name", "", "name of probe")
 
 	flag.Parse()
 
-	fmt.Println("config:", *configPtr)
-	fmt.Println("mode:", *modePtr)
+	if *debugPtr {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	log.Debugf("config:", *configPtr)
+	log.Debugf("mode:", *modePtr)
 
 	if *modePtr == "master" {
 
-		viper.Set("Verbose", true)
+		if *debugPtr {
+			viper.Set("Verbose", true)
+		}
 		viper.SetConfigName(*configPtr) // name of config file (without extension)
 		viper.AddConfigPath("./config") // optionally look for config in the working directory
 		viper.SetConfigType("json")
