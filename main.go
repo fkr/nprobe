@@ -55,7 +55,7 @@ type ResponsePacket struct {
 }
 
 type Target struct {
-	Name      string `mapstructur:"name"`
+	Name      string `mapstructure:"name"`
 	Host      string `mapstructure:"host"`
 	ProbeType string `mapstructure:"probe_type"`
 	Probes    int    `mapstructure:"probes"`
