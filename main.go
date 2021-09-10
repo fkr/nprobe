@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/go-ping/ping"
 	"github.com/gorilla/mux"
+	"github.com/influxdata/influxdb-client-go/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/tcnksm/go-httpstat"
@@ -23,8 +25,16 @@ import (
 )
 
 type Configuration struct {
-	Probes  []Probe           `mapstructure:"probes"`
-	Targets map[string]Target `mapstructure:"targets"`
+	Database InfluxConfiguration `mapstructure:"database"`
+	Probes   []Probe             `mapstructure:"probes"`
+	Targets  map[string]Target   `mapstructure:"targets"`
+}
+
+type InfluxConfiguration struct {
+	Host   string `mapstructure:"host"`
+	Token  string `mapstructure:"token"`
+	Org    string `mapstructure:"org"`
+	Bucket string `mapstructure:"bucket"`
 }
 
 type ErrorResponse struct {
@@ -52,6 +62,7 @@ type ResponsePacket struct {
 	MaxRTT     int64
 	Median     int64
 	NumProbes  int
+	Timestamp  time.Time
 }
 
 type Target struct {
@@ -63,6 +74,7 @@ type Target struct {
 }
 
 var Config Configuration
+var Client influxdb2.Client
 
 const version = "0.0.1"
 const apiVersion = "0.0.1"
@@ -96,6 +108,8 @@ func main() {
 	if *modePtr == "master" {
 
 		parseConfig(configPtr)
+
+		Client = influxdb2.NewClient(Config.Database.Host, Config.Database.Token)
 
 		router := mux.NewRouter()
 
@@ -201,12 +215,29 @@ func GetProbe(w http.ResponseWriter, r *http.Request) {
 func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
-	log.Printf("%+v", params)
+	log.Debugf("%+v", params)
 
 	var responsePacket ResponsePacket
 	_ = json.NewDecoder(r.Body).Decode(&responsePacket)
 
-	log.Printf("%+v", responsePacket)
+	log.Debugf("%+v", responsePacket)
+
+	// user blocking write client for writes to desired bucket
+	writeAPI := Client.WriteAPIBlocking(Config.Database.Org, Config.Database.Bucket)
+	// create point using fluent style
+	p := influxdb2.NewPointWithMeasurement("stat").
+		AddTag("unit", "milliseconds").
+		AddTag("target", responsePacket.TargetName).
+		AddTag("probe", responsePacket.ProbeName).
+		AddField("avg", responsePacket.Median).
+		AddField("max", responsePacket.MaxRTT).
+		AddField("min", responsePacket.MinRTT).
+		SetTime(responsePacket.Timestamp)
+	writeAPI.WritePoint(context.Background(), p)
+
+	// Ensures background processes finish
+	Client.Close()
+
 }
 
 func probeIcmp(hostname string, probes int) ResponsePacket {
@@ -221,7 +252,8 @@ func probeIcmp(hostname string, probes int) ResponsePacket {
 	r := ResponsePacket{MinRTT: stats.MinRtt.Nanoseconds() / 1000000,
 		MaxRTT:    stats.MaxRtt.Nanoseconds() / 1000000,
 		Median:    stats.AvgRtt.Nanoseconds() / 1000000,
-		NumProbes: probes}
+		NumProbes: probes,
+		Timestamp: time.Now()}
 
 	return r
 }

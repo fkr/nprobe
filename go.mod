@@ -6,7 +6,8 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-ping/ping v0.0.0-20210506233800-ff8be3320020
 	github.com/gorilla/mux v1.8.0
-	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/influxdata/influxdb-client-go/v2 v2.5.0
+	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/viper v1.8.1
 	github.com/tcnksm/go-httpstat v0.2.0
