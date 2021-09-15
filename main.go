@@ -256,8 +256,12 @@ func probeIcmp(hostname string, probes int) ResponsePacket {
 	pinger.Count = probes
 
 	pinger.SetPrivileged(Config.Privileged)
-	pinger.Debug= true
-	err = pinger.Run()                 // blocks until finished
+
+	if (Config.Debug) {
+		pinger.Debug = true
+	}
+
+	err = pinger.Run() // blocks until finished
 	if err != nil {
 		log.Errorf("Pinger error: %s\n", err)
 	}
