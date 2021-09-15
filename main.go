@@ -94,8 +94,8 @@ func main() {
 
 	configPtr := flag.String("config", "config/config.json", "config file")
 	debugPtr := flag.Bool("debug", false, "enable debug mode")
-	modePtr := flag.String("mode", "master", "slave / master")
-	masterPtr := flag.String("master", "", "fqdn / ip of master server")
+	mode := flag.String("mode", "head", "head / probe")
+	headNode := flag.String("head", "", "fqdn / ip of head node")
 	privileged := flag.Bool("privileged", false, "enable privileged mode")
 	probeNamePtr := flag.String("name", "", "name of probe")
 
@@ -111,9 +111,9 @@ func main() {
 	}
 
 	log.Debugf("config:", *configPtr)
-	log.Debugf("mode:", *modePtr)
+	log.Debugf("mode:", *mode)
 
-	if *modePtr == "master" {
+	if *mode == "head" {
 
 		parseConfig(configPtr)
 
@@ -129,7 +129,7 @@ func main() {
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
 		log.Fatal(http.ListenAndServe(":8000", router))
 	} else {
-		request, _ := http.NewRequest("GET", *masterPtr+"probes/"+*probeNamePtr, nil)
+		request, _ := http.NewRequest("GET", *headNode+"probes/"+*probeNamePtr, nil)
 		request.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 		client := &http.Client{}
 		response, err := client.Do(request)
@@ -150,7 +150,7 @@ func main() {
 
 			for _, k := range targets {
 				wg.Add(1)
-				go HandleProbe(k, *masterPtr, *probeNamePtr, &wg)
+				go HandleProbe(k, *headNode, *probeNamePtr, &wg)
 			}
 			wg.Wait()
 		}
@@ -158,7 +158,7 @@ func main() {
 
 }
 
-func HandleProbe(k Target, master string, probeName string, wg *sync.WaitGroup) {
+func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup) {
 	for {
 
 		var r = ResponsePacket{}
@@ -176,7 +176,7 @@ func HandleProbe(k Target, master string, probeName string, wg *sync.WaitGroup) 
 		r.ProbeType = k.ProbeType
 		r.ProbeName = probeName
 
-		url := master + "targets/" + k.Name
+		url := headnode + "targets/" + k.Name
 
 		jsonValue, _ := json.Marshal(r)
 		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
