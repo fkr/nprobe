@@ -93,7 +93,7 @@ func main() {
 	log.Printf("Running version: %s", version)
 
 	configPtr := flag.String("config", "config/config.json", "config file")
-	debugPtr := flag.Bool("debug", false, "enable debug mode")
+	debug := flag.Bool("debug", false, "enable debug mode")
 	mode := flag.String("mode", "head", "head / probe")
 	headNode := flag.String("head", "", "fqdn / ip of head node")
 	privileged := flag.Bool("privileged", false, "enable privileged mode")
@@ -101,7 +101,7 @@ func main() {
 
 	flag.Parse()
 
-	if *debugPtr {
+	if *debug {
 		log.SetLevel(log.DebugLevel)
 		Config.Debug = true
 	}
