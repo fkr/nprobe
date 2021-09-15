@@ -25,8 +25,10 @@ import (
 )
 
 type Configuration struct {
+	Debug    bool
 	Database InfluxConfiguration `mapstructure:"database"`
 	Probes   []Probe             `mapstructure:"probes"`
+	Privileged bool
 	Targets  map[string]Target   `mapstructure:"targets"`
 }
 
@@ -94,12 +96,18 @@ func main() {
 	debugPtr := flag.Bool("debug", false, "enable debug mode")
 	modePtr := flag.String("mode", "master", "slave / master")
 	masterPtr := flag.String("master", "", "fqdn / ip of master server")
+	privileged := flag.Bool("privileged", false, "enable privileged mode")
 	probeNamePtr := flag.String("name", "", "name of probe")
 
 	flag.Parse()
 
 	if *debugPtr {
 		log.SetLevel(log.DebugLevel)
+		Config.Debug = true
+	}
+
+	if *privileged {
+		Config.Privileged = true
 	}
 
 	log.Debugf("config:", *configPtr)
@@ -243,10 +251,17 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 func probeIcmp(hostname string, probes int) ResponsePacket {
 	pinger, err := ping.NewPinger(hostname)
 	if err != nil {
-		fmt.Printf("Pinger error: %s\n", err)
+		log.Errorf("Pinger error: %s\n", err)
 	}
 	pinger.Count = probes
-	pinger.Run()                 // blocks until finished
+
+	pinger.SetPrivileged(Config.Privileged)
+	pinger.Debug= true
+	err = pinger.Run()                 // blocks until finished
+	if err != nil {
+		log.Errorf("Pinger error: %s\n", err)
+	}
+
 	stats := pinger.Statistics() // get send/receive/rtt stats
 
 	r := ResponsePacket{MinRTT: stats.MinRtt.Nanoseconds() / 1000000,
