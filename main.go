@@ -150,7 +150,7 @@ func main() {
 
 			for _, k := range targets {
 				wg.Add(1)
-				go HandleProbe(k, *masterPtr, *probeNamePtr, wg)
+				go HandleProbe(k, *masterPtr, *probeNamePtr, &wg)
 			}
 			wg.Wait()
 		}
@@ -158,7 +158,7 @@ func main() {
 
 }
 
-func HandleProbe(k Target, master string, probeName string, wg sync.WaitGroup) {
+func HandleProbe(k Target, master string, probeName string, wg *sync.WaitGroup) {
 	for {
 
 		var r = ResponsePacket{}
