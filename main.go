@@ -25,11 +25,11 @@ import (
 )
 
 type Configuration struct {
-	Debug      bool
+	Debug      bool                `mapstructure:"debug"`
 	Database   InfluxConfiguration `mapstructure:"database"`
 	Probes     []Probe             `mapstructure:"probes"`
-	Privileged bool
-	Targets    map[string]Target `mapstructure:"targets"`
+	Privileged bool                `mapstructure:"privileged"`
+	Targets    map[string]Target   `mapstructure:"targets"`
 }
 
 type InfluxConfiguration struct {
@@ -57,14 +57,14 @@ type Probe struct {
 }
 
 type ResponsePacket struct {
-	ProbeName  string
-	TargetName string
-	ProbeType  string
-	MinRTT     int64
-	MaxRTT     int64
-	Median     int64
-	NumProbes  int
-	Timestamp  time.Time
+	ProbeName  string    `mapstructure:"probe_name"`
+	TargetName string    `mapstructure:"target_name"`
+	ProbeType  string    `mapstructure:"probe_type"`
+	MinRTT     int64     `mapstructure:"min_rtt"`
+	MaxRTT     int64     `mapstructure:"max_rtt"`
+	Median     int64     `mapstructure:"median"`
+	NumProbes  int       `mapstructure:"num_probes"`
+	Timestamp  time.Time `mapstructure:"timestamp"`
 }
 
 type Target struct {
