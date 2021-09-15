@@ -257,7 +257,7 @@ func probeIcmp(hostname string, probes int) ResponsePacket {
 
 	pinger.SetPrivileged(Config.Privileged)
 
-	if (Config.Debug) {
+	if Config.Debug {
 		pinger.Debug = true
 	}
 
