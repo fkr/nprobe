@@ -25,11 +25,11 @@ import (
 )
 
 type Configuration struct {
-	Debug    bool
-	Database InfluxConfiguration `mapstructure:"database"`
-	Probes   []Probe             `mapstructure:"probes"`
+	Debug      bool
+	Database   InfluxConfiguration `mapstructure:"database"`
+	Probes     []Probe             `mapstructure:"probes"`
 	Privileged bool
-	Targets  map[string]Target   `mapstructure:"targets"`
+	Targets    map[string]Target `mapstructure:"targets"`
 }
 
 type InfluxConfiguration struct {
