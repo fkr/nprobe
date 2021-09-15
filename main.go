@@ -324,7 +324,8 @@ func probeHttp(url string, probes int) ResponsePacket {
 	r := ResponsePacket{MinRTT: int64(min),
 		MaxRTT:    int64(max),
 		Median:    int64(avg),
-		NumProbes: probes}
+		NumProbes: probes,
+		Timestamp: time.Now()}
 
 	return r
 }
