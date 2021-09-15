@@ -97,7 +97,7 @@ func main() {
 	mode := flag.String("mode", "head", "head / probe")
 	headNode := flag.String("head", "", "fqdn / ip of head node")
 	privileged := flag.Bool("privileged", false, "enable privileged mode")
-	probeNamePtr := flag.String("name", "", "name of probe")
+	probeName := flag.String("name", "", "name of probe")
 
 	flag.Parse()
 
@@ -129,7 +129,7 @@ func main() {
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
 		log.Fatal(http.ListenAndServe(":8000", router))
 	} else {
-		request, _ := http.NewRequest("GET", *headNode+"probes/"+*probeNamePtr, nil)
+		request, _ := http.NewRequest("GET", *headNode+"probes/"+*probeName, nil)
 		request.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 		client := &http.Client{}
 		response, err := client.Do(request)
@@ -150,7 +150,7 @@ func main() {
 
 			for _, k := range targets {
 				wg.Add(1)
-				go HandleProbe(k, *headNode, *probeNamePtr, &wg)
+				go HandleProbe(k, *headNode, *probeName, &wg)
 			}
 			wg.Wait()
 		}
