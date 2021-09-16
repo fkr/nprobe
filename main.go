@@ -143,7 +143,7 @@ func main() {
 			log.Printf("Received targets: %+v", targets)
 
 			if err != nil {
-				fmt.Printf("Unmarshal error: %s", err)
+				log.Fatalf("Error while processing configuration: %s", err)
 			}
 
 			var wg sync.WaitGroup
