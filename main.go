@@ -137,6 +137,7 @@ func main() {
 			log.Fatalf("Error retrieving configuration from head: %s\n", err)
 		} else {
 			data, _ := ioutil.ReadAll(response.Body)
+			log.Debugf("Config received:\n%+v", data)
 			var targets []Target
 			err := json.Unmarshal(data, &targets)
 
