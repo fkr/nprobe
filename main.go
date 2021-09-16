@@ -134,7 +134,7 @@ func main() {
 		client := &http.Client{}
 		response, err := client.Do(request)
 		if err != nil {
-			fmt.Printf("The HTTP request failed with error %s\n", err)
+			log.Fatalf("Error retrieving configuration from head: %s\n", err)
 		} else {
 			data, _ := ioutil.ReadAll(response.Body)
 			var targets []Target
