@@ -117,6 +117,7 @@ func main() {
 		parseConfig(configPtr)
 
 		Client = influxdb2.NewClient(Config.Database.Host, Config.Database.Token)
+		defer Client.Close()
 
 		router := mux.NewRouter()
 
