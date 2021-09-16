@@ -214,11 +214,11 @@ func GetProbe(w http.ResponseWriter, r *http.Request) {
 				return
 			} else {
 				handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+				return
 			}
-		} else {
-			handleError(w, http.StatusBadRequest, r.RequestURI, "Misformed payload", nil)
 		}
 	}
+	handleError(w, http.StatusBadRequest, r.RequestURI, "Misformed payload", nil)
 }
 
 func SubmitTarget(w http.ResponseWriter, r *http.Request) {
