@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -231,7 +230,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("%+v", responsePacket)
 
 	// user blocking write client for writes to desired bucket
-	writeAPI := Client.WriteAPIBlocking(Config.Database.Org, Config.Database.Bucket)
+	writeAPI := Client.WriteAPI(Config.Database.Org, Config.Database.Bucket)
 	// create point using fluent style
 	p := influxdb2.NewPointWithMeasurement("stat").
 		AddTag("unit", "milliseconds").
@@ -241,11 +240,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 		AddField("max", responsePacket.MaxRTT).
 		AddField("min", responsePacket.MinRTT).
 		SetTime(responsePacket.Timestamp)
-	writeAPI.WritePoint(context.Background(), p)
-
-	// Ensures background processes finish
-	Client.Close()
-
+	writeAPI.WritePoint(p)
 }
 
 func probeIcmp(hostname string, probes int) ResponsePacket {
