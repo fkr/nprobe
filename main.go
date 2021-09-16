@@ -91,7 +91,7 @@ func main() {
 
 	log.Printf("Running version: %s", version)
 
-	configPtr := flag.String("config", "config/config.json", "config file")
+	configFile := flag.String("config", "config/config.json", "config file")
 	debug := flag.Bool("debug", false, "enable debug mode")
 	mode := flag.String("mode", "head", "head / probe")
 	headNode := flag.String("head", "", "fqdn / ip of head node")
@@ -109,12 +109,12 @@ func main() {
 		Config.Privileged = true
 	}
 
-	log.Debugf("config:", *configPtr)
+	log.Debugf("config:", *configFile)
 	log.Debugf("mode:", *mode)
 
 	if *mode == "head" {
 
-		parseConfig(configPtr)
+		parseConfig(configFile)
 
 		Client = influxdb2.NewClient(Config.Database.Host, Config.Database.Token)
 		defer Client.Close()
