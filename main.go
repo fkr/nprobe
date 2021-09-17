@@ -71,7 +71,7 @@ type Target struct {
 	Host      string `mapstructure:"host"`
 	ProbeType string `mapstructure:"probe_type"`
 	Probes    int    `mapstructure:"probes"`
-	Intervall int    `mapstructure:"intervall"`
+	Interval int `mapstructure:"interval"`
 }
 
 var Config Configuration
@@ -190,7 +190,7 @@ func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup
 
 		log.Printf("%+v", body)
 
-		time.Sleep(time.Duration(k.Intervall) * time.Second)
+		time.Sleep(time.Duration(k.Interval) * time.Second)
 	}
 	defer wg.Done()
 }
