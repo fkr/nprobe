@@ -24,18 +24,18 @@ import (
 )
 
 type Configuration struct {
-	Debug      bool                `json:"debug"`
-	Database   InfluxConfiguration `json:"database"`
-	Probes     []Probe             `json:"probes"`
-	Privileged bool                `json:"privileged"`
-	Targets    map[string]Target   `json:"targets"`
+	Debug      bool                `mapstructure:"debug"`
+	Database   InfluxConfiguration `mapstructure:"database"`
+	Probes     []Probe             `mapstructure:"probes"`
+	Privileged bool                `mapstructure:"privileged"`
+	Targets    map[string]Target   `mapstructure:"targets"`
 }
 
 type InfluxConfiguration struct {
-	Host   string `json:"host"`
-	Token  string `json:"token"`
-	Org    string `json:"org"`
-	Bucket string `json:"bucket"`
+	Host   string `mapstructure:"host"`
+	Token  string `mapstructure:"token"`
+	Org    string `mapstructure:"org"`
+	Bucket string `mapstructure:"bucket"`
 }
 
 type ErrorResponse struct {
@@ -50,28 +50,28 @@ type ErrorPacket struct {
 }
 
 type Probe struct {
-	Name    string   `json:"name"`
-	Secret  string   `json:"secret"`
-	Targets []string `json:"targets"`
+	Name    string   `mapstructure:"name"`
+	Secret  string   `mapstructure:"secret"`
+	Targets []string `mapstructure:"targets"`
 }
 
 type ResponsePacket struct {
-	ProbeName  string    `json:"probe_name"`
-	TargetName string    `json:"target_name"`
-	ProbeType  string    `json:"probe_type"`
-	MinRTT     int64     `json:"min_rtt"`
-	MaxRTT     int64     `json:"max_rtt"`
-	Median     int64     `json:"median"`
-	NumProbes  int       `json:"num_probes"`
-	Timestamp  time.Time `json:"timestamp"`
+	ProbeName  string    `mapstructure:"probe_name"`
+	TargetName string    `mapstructure:"target_name"`
+	ProbeType  string    `mapstructure:"probe_type"`
+	MinRTT     int64     `mapstructure:"min_rtt"`
+	MaxRTT     int64     `mapstructure:"max_rtt"`
+	Median     int64     `mapstructure:"median"`
+	NumProbes  int       `mapstructure:"num_probes"`
+	Timestamp  time.Time `mapstructure:"timestamp"`
 }
 
 type Target struct {
-	Name      string `json:"name"`
-	Host      string `json:"host"`
-	ProbeType string `json:"probe_type"`
-	Probes    int    `json:"probes"`
-	Intervall int    `json:"intervall"`
+	Name      string `mapstructure:"name"`
+	Host      string `mapstructure:"host"`
+	ProbeType string `mapstructure:"probe_type"`
+	Probes    int    `mapstructure:"probes"`
+	Intervall int    `mapstructure:"intervall"`
 }
 
 var Config Configuration
