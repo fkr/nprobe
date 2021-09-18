@@ -109,8 +109,8 @@ func main() {
 		Config.Privileged = true
 	}
 
-	log.Debugf("config:", *configFile)
-	log.Debugf("mode:", *mode)
+	log.Debugf("config file: %s", *configFile)
+	log.Debugf("mode: %s", *mode)
 
 	if *mode == "head" {
 
