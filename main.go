@@ -209,6 +209,8 @@ func GetProbe(w http.ResponseWriter, r *http.Request) {
 					i++
 				}
 
+				log.Debugf("Probe '%s' is receiving these targets: %+v", probe.Name, targets)
+
 				json.NewEncoder(w).Encode(targets)
 				return
 			} else {
