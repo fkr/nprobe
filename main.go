@@ -375,7 +375,9 @@ func dumpRequest(r *http.Request) {
 }
 
 func parseConfig(configPtr *string) {
-	viper.Set("Verbose", true)
+	if Config.Debug {
+		viper.Set("Verbose", true)
+	}
 	viper.SetConfigFile(*configPtr) // name of config file (without extension)
 	viper.SetConfigType("json")
 	err := viper.ReadInConfig() // Find and read the config file
