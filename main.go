@@ -395,5 +395,11 @@ func parseConfig(configPtr *string) {
 		log.Fatalf("unable to decode into struct, %v", err)
 	}
 
+	// inject name from map names
+	for name, k := range Config.Targets {
+		k.Name = name
+		Config.Targets[name]= k
+	}
+
 	log.Debugf("%+v", Config)
 }
