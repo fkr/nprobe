@@ -386,7 +386,7 @@ func parseConfig(configPtr *string) {
 		log.Fatalf("Fatal error config file: %s \n", err)
 	}
 
-	log.Infof("Using config: %s\n", viper.ConfigFileUsed())
+	log.Infof("Using config file: %s\n", viper.ConfigFileUsed())
 
 	err = viper.Unmarshal(&Config)
 	if err != nil {
