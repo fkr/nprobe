@@ -167,10 +167,10 @@ func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup
 			r = runExternalProbe(k.Host, k.Probes, k.ProbeType)
 		}
 		if k.ProbeType == "icmp" {
-			r = probeIcmp(k.Host, k.Probes)
+			r = k.ProbeIcmp(probeName)
 		}
 		if k.ProbeType == "http" {
-			r = probeHttp(k.Host, k.Probes)
+			r = k.probeHttp(probeName)
 		}
 		r.TargetName = k.Name
 		r.ProbeType = k.ProbeType
@@ -246,12 +246,12 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	writeAPI.WritePoint(p)
 }
 
-func probeIcmp(hostname string, probes int) ResponsePacket {
-	pinger, err := ping.NewPinger(hostname)
+func (target *Target) ProbeIcmp(probeName string) ResponsePacket {
+	pinger, err := ping.NewPinger(target.Host)
 	if err != nil {
 		log.Errorf("Pinger error: %s\n", err)
 	}
-	pinger.Count = probes
+	pinger.Count = target.Probes
 
 	pinger.SetPrivileged(Config.Privileged)
 
@@ -266,16 +266,19 @@ func probeIcmp(hostname string, probes int) ResponsePacket {
 
 	stats := pinger.Statistics() // get send/receive/rtt stats
 
-	r := ResponsePacket{MinRTT: stats.MinRtt.Nanoseconds() / 1000000,
-		MaxRTT:    stats.MaxRtt.Nanoseconds() / 1000000,
-		Median:    stats.AvgRtt.Nanoseconds() / 1000000,
-		NumProbes: probes,
-		Timestamp: time.Now()}
+	r := ResponsePacket{
+		ProbeName:  probeName,
+		TargetName: target.Name,
+		MinRTT:     stats.MinRtt.Nanoseconds() / 1000000,
+		MaxRTT:     stats.MaxRtt.Nanoseconds() / 1000000,
+		Median:     stats.AvgRtt.Nanoseconds() / 1000000,
+		NumProbes:  target.Probes,
+		Timestamp:  time.Now()}
 
 	return r
 }
 
-func probeHttp(url string, probes int) ResponsePacket {
+func (target *Target) probeHttp(probeName string) ResponsePacket {
 	i := 0
 
 	min := intsets.MaxInt
@@ -283,7 +286,7 @@ func probeHttp(url string, probes int) ResponsePacket {
 	avg := 0
 
 	for {
-		req, err := http.NewRequest("GET", url, nil)
+		req, err := http.NewRequest("GET", target.Host, nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -313,17 +316,20 @@ func probeHttp(url string, probes int) ResponsePacket {
 		avg += con
 
 		i++
-		if i == probes {
-			avg = avg / probes
+		if i == target.Probes {
+			avg = avg / target.Probes
 			break
 		}
 	}
 
-	r := ResponsePacket{MinRTT: int64(min),
-		MaxRTT:    int64(max),
-		Median:    int64(avg),
-		NumProbes: probes,
-		Timestamp: time.Now()}
+	r := ResponsePacket{
+		ProbeName:  probeName,
+		TargetName: target.Name,
+		MinRTT:     int64(min),
+		MaxRTT:     int64(max),
+		Median:     int64(avg),
+		NumProbes:  target.Probes,
+		Timestamp:  time.Now()}
 
 	return r
 }
