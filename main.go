@@ -161,20 +161,17 @@ func main() {
 func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup) {
 	for {
 
-		var r = ResponsePacket{}
+		var r = []ResponsePacket{}
 
-		if k.ProbeType != "icmp" && k.ProbeType != "http" {
-			r = runExternalProbe(k.Host, k.Probes, k.ProbeType)
-		}
+		//if k.ProbeType != "icmp" && k.ProbeType != "http" {
+		//	r = runExternalProbe(k.Host, k.Probes, k.ProbeType)
+		//}
 		if k.ProbeType == "icmp" {
 			r = k.ProbeIcmp(probeName)
 		}
 		if k.ProbeType == "http" {
 			r = k.probeHttp(probeName)
 		}
-		r.TargetName = k.Name
-		r.ProbeType = k.ProbeType
-		r.ProbeName = probeName
 
 		url := headnode + "targets/" + k.Name
 
@@ -227,15 +224,17 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
 	log.Debugf("%+v", params)
 
-	var responsePacket ResponsePacket
-	_ = json.NewDecoder(r.Body).Decode(&responsePacket)
+	var responsePackets []ResponsePacket
+	_ = json.NewDecoder(r.Body).Decode(&responsePackets)
 
-	log.Debugf("%+v", responsePacket)
+	log.Debugf("%+v", responsePackets)
 
 	// user blocking write client for writes to desired bucket
 	writeAPI := Client.WriteAPI(Config.Database.Org, Config.Database.Bucket)
 	// create point using fluent style
-	p := influxdb2.NewPointWithMeasurement("stat").
+
+	for _, responsePacket := range responsePackets {
+		p := influxdb2.NewPointWithMeasurement("stat").
 		AddTag("unit", "milliseconds").
 		AddTag("target", responsePacket.TargetName).
 		AddTag("probe", responsePacket.ProbeName).
@@ -243,10 +242,11 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 		AddField("max", responsePacket.MaxRTT).
 		AddField("min", responsePacket.MinRTT).
 		SetTime(responsePacket.Timestamp)
-	writeAPI.WritePoint(p)
+		writeAPI.WritePoint(p)
+	}
 }
 
-func (target *Target) ProbeIcmp(probeName string) ResponsePacket {
+func (target *Target) ProbeIcmp(probeName string) []ResponsePacket {
 	pinger, err := ping.NewPinger(target.Host)
 	if err != nil {
 		log.Errorf("Pinger error: %s\n", err)
@@ -266,8 +266,10 @@ func (target *Target) ProbeIcmp(probeName string) ResponsePacket {
 
 	stats := pinger.Statistics() // get send/receive/rtt stats
 
-	r := ResponsePacket{
+	response := make([]ResponsePacket, 1)
+	response[0] = ResponsePacket{
 		ProbeName:  probeName,
+		ProbeType:  target.ProbeType,
 		TargetName: target.Name,
 		MinRTT:     stats.MinRtt.Nanoseconds() / 1000000,
 		MaxRTT:     stats.MaxRtt.Nanoseconds() / 1000000,
@@ -275,10 +277,10 @@ func (target *Target) ProbeIcmp(probeName string) ResponsePacket {
 		NumProbes:  target.Probes,
 		Timestamp:  time.Now()}
 
-	return r
+	return response
 }
 
-func (target *Target) probeHttp(probeName string) ResponsePacket {
+func (target *Target) probeHttp(probeName string) []ResponsePacket {
 	i := 0
 
 	min := intsets.MaxInt
@@ -322,8 +324,10 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 		}
 	}
 
-	r := ResponsePacket{
+	response := make([]ResponsePacket, 1)
+	response[0] = ResponsePacket{
 		ProbeName:  probeName,
+		ProbeType:  target.ProbeType,
 		TargetName: target.Name,
 		MinRTT:     int64(min),
 		MaxRTT:     int64(max),
@@ -331,9 +335,10 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 		NumProbes:  target.Probes,
 		Timestamp:  time.Now()}
 
-	return r
+	return response
 }
 
+/**
 func runExternalProbe(host string, probes int, probe string) ResponsePacket {
 
 	r := ResponsePacket{MinRTT: int64(0),
@@ -343,6 +348,7 @@ func runExternalProbe(host string, probes int, probe string) ResponsePacket {
 
 	return r
 }
+ */
 
 func handleError(w http.ResponseWriter, status int, source string, title string, err error) {
 	errorResponse := ErrorResponse{Errors: []*ErrorPacket{
