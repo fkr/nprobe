@@ -71,7 +71,7 @@ type Target struct {
 	Host      string `mapstructure:"host"`
 	ProbeType string `mapstructure:"probe_type"`
 	Probes    int    `mapstructure:"probes"`
-	Interval int `mapstructure:"interval"`
+	Interval  int    `mapstructure:"interval"`
 }
 
 var Config Configuration
@@ -404,7 +404,7 @@ func parseConfig(configPtr *string) {
 	// inject name from map names
 	for name, k := range Config.Targets {
 		k.Name = name
-		Config.Targets[name]= k
+		Config.Targets[name] = k
 	}
 
 	log.Debugf("%+v", Config)
