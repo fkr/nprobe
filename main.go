@@ -99,7 +99,7 @@ func main() {
 
 	configFile := flag.String("config", "config/config.json", "config file")
 	debug := flag.Bool("debug", false, "enable debug mode")
-	mode := flag.String("mode", "head", "head / probe")
+	mode := flag.String("mode", "probe", "head / probe")
 	headNode := flag.String("head", "", "fqdn / ip of head node")
 	privileged := flag.Bool("privileged", false, "enable privileged mode")
 	probeName := flag.String("name", hostname, "name of probe")
