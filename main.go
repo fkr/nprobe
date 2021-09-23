@@ -89,14 +89,20 @@ func main() {
 		FullTimestamp: true,
 	})
 
-	log.Printf("Running version: %s", version)
+	hostname, err := os.Hostname()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	log.Printf("Host '%s' running version: %s", hostname, version)
 
 	configFile := flag.String("config", "config/config.json", "config file")
 	debug := flag.Bool("debug", false, "enable debug mode")
 	mode := flag.String("mode", "head", "head / probe")
 	headNode := flag.String("head", "", "fqdn / ip of head node")
 	privileged := flag.Bool("privileged", false, "enable privileged mode")
-	probeName := flag.String("name", "", "name of probe")
+	probeName := flag.String("name", hostname, "name of probe")
 
 	flag.Parse()
 
