@@ -95,7 +95,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Printf("Host '%s' running version: %s", hostname, version)
 
 	configFile := flag.String("config", "config/config.json", "config file")
 	debug := flag.Bool("debug", false, "enable debug mode")
@@ -115,6 +114,7 @@ func main() {
 		Config.Privileged = true
 	}
 
+	log.Printf("Host '%s' running version: %s", *probeName, version)
 	log.Debugf("mode: %s", *mode)
 
 	if *mode == "head" {
