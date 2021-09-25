@@ -24,6 +24,7 @@ import (
 )
 
 type Configuration struct {
+	Authorization string		   `mapstructure:"authorization"`
 	Debug      bool                `mapstructure:"debug"`
 	Database   InfluxConfiguration `mapstructure:"database"`
 	Probes     []Probe             `mapstructure:"probes"`
@@ -75,6 +76,7 @@ type Target struct {
 }
 
 var Config Configuration
+var ConfigFile string
 var Client influxdb2.Client
 
 const version = "0.0.1"
@@ -120,6 +122,7 @@ func main() {
 	if *mode == "head" {
 
 		parseConfig(configFile)
+		ConfigFile = *configFile
 
 		Client = influxdb2.NewClient(Config.Database.Host, Config.Database.Token)
 		defer Client.Close()
@@ -129,6 +132,7 @@ func main() {
 		// make use of our middleware to set content type and such
 		router.Use(commonMiddleware)
 
+		router.HandleFunc("/config", ConfigReload).Headers("X-Authorization", Config.Authorization).Methods("POST")
 		router.HandleFunc("/version", VersionRequest).Methods("GET")
 		router.HandleFunc("/probes/{name}", GetProbe).Methods("GET")
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
@@ -161,6 +165,13 @@ func main() {
 			wg.Wait()
 		}
 	}
+
+}
+
+func ConfigReload(w http.ResponseWriter, r *http.Request) {
+
+	log.Infof("Config Reload triggered")
+	parseConfig(&ConfigFile)
 
 }
 
