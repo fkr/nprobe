@@ -24,12 +24,12 @@ import (
 )
 
 type Configuration struct {
-	Authorization string		   `mapstructure:"authorization"`
-	Debug      bool                `mapstructure:"debug"`
-	Database   InfluxConfiguration `mapstructure:"database"`
-	Probes     []Probe             `mapstructure:"probes"`
-	Privileged bool                `mapstructure:"privileged"`
-	Targets    map[string]Target   `mapstructure:"targets"`
+	Authorization string              `mapstructure:"authorization"`
+	Debug         bool                `mapstructure:"debug"`
+	Database      InfluxConfiguration `mapstructure:"database"`
+	Probes        []Probe             `mapstructure:"probes"`
+	Privileged    bool                `mapstructure:"privileged"`
+	Targets       map[string]Target   `mapstructure:"targets"`
 }
 
 type InfluxConfiguration struct {
@@ -96,7 +96,6 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
 
 	configFile := flag.String("config", "config/config.json", "config file")
 	debug := flag.Bool("debug", false, "enable debug mode")
@@ -252,13 +251,13 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
 	for _, responsePacket := range responsePackets {
 		p := influxdb2.NewPointWithMeasurement("stat").
-		AddTag("unit", "milliseconds").
-		AddTag("target", responsePacket.TargetName).
-		AddTag("probe", responsePacket.ProbeName).
-		AddField("avg", responsePacket.Median).
-		AddField("max", responsePacket.MaxRTT).
-		AddField("min", responsePacket.MinRTT).
-		SetTime(responsePacket.Timestamp)
+			AddTag("unit", "milliseconds").
+			AddTag("target", responsePacket.TargetName).
+			AddTag("probe", responsePacket.ProbeName).
+			AddField("avg", responsePacket.Median).
+			AddField("max", responsePacket.MaxRTT).
+			AddField("min", responsePacket.MinRTT).
+			SetTime(responsePacket.Timestamp)
 		writeAPI.WritePoint(p)
 	}
 }
@@ -365,7 +364,7 @@ func runExternalProbe(host string, probes int, probe string) ResponsePacket {
 
 	return r
 }
- */
+*/
 
 func handleError(w http.ResponseWriter, status int, source string, title string, err error) {
 	errorResponse := ErrorResponse{Errors: []*ErrorPacket{
