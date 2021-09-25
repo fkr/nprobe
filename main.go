@@ -296,7 +296,7 @@ func (target *Target) probeHttp(probeName string) []ResponsePacket {
 	for {
 		req, err := http.NewRequest("GET", target.Host, nil)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Error running http probe: %s", err)
 		}
 		// Create a httpstat powered context
 		var result httpstat.Result
@@ -306,7 +306,7 @@ func (target *Target) probeHttp(probeName string) []ResponsePacket {
 		client := http.DefaultClient
 		res, err := client.Do(req)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Error running http probe: %s", err)
 		}
 		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
 			log.Fatal(err)
