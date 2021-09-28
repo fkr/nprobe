@@ -73,6 +73,7 @@ type Target struct {
 	ProbeType string `mapstructure:"probe_type"`
 	Probes    int    `mapstructure:"probes"`
 	Interval  int    `mapstructure:"interval"`
+	BatchSize int    `mapstructure:"batch_size"`
 }
 
 var Config Configuration
@@ -263,94 +264,100 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 }
 
 func (target *Target) ProbeIcmp(probeName string) []ResponsePacket {
+
+	response := make([]ResponsePacket, target.BatchSize)
 	pinger, err := ping.NewPinger(target.Host)
 	if err != nil {
 		log.Errorf("Pinger error: %s\n", err)
 	}
-	pinger.Count = target.Probes
-
-	pinger.SetPrivileged(Config.Privileged)
-
 	if Config.Debug {
 		pinger.Debug = true
 	}
+	pinger.SetPrivileged(Config.Privileged)
 
-	err = pinger.Run() // blocks until finished
-	if err != nil {
-		log.Errorf("Pinger error: %s\n", err)
+	for i:=0;i<target.BatchSize;i++ {
+
+		pinger.Count = target.Probes
+
+		err = pinger.Run() // blocks until finished
+		if err != nil {
+			log.Errorf("Pinger error: %s\n", err)
+		}
+
+		stats := pinger.Statistics() // get send/receive/rtt stats
+
+		response[i] = ResponsePacket{
+			ProbeName:  probeName,
+			ProbeType:  target.ProbeType,
+			TargetName: target.Name,
+			MinRTT:     stats.MinRtt.Nanoseconds() / 1000000,
+			MaxRTT:     stats.MaxRtt.Nanoseconds() / 1000000,
+			Median:     stats.AvgRtt.Nanoseconds() / 1000000,
+			NumProbes:  target.Probes,
+			Timestamp:  time.Now()}
 	}
-
-	stats := pinger.Statistics() // get send/receive/rtt stats
-
-	response := make([]ResponsePacket, 1)
-	response[0] = ResponsePacket{
-		ProbeName:  probeName,
-		ProbeType:  target.ProbeType,
-		TargetName: target.Name,
-		MinRTT:     stats.MinRtt.Nanoseconds() / 1000000,
-		MaxRTT:     stats.MaxRtt.Nanoseconds() / 1000000,
-		Median:     stats.AvgRtt.Nanoseconds() / 1000000,
-		NumProbes:  target.Probes,
-		Timestamp:  time.Now()}
-
 	return response
 }
 
 func (target *Target) probeHttp(probeName string) []ResponsePacket {
-	i := 0
 
-	min := intsets.MaxInt
-	max := 0
-	avg := 0
+	response := make([]ResponsePacket, target.BatchSize)
 
-	for {
-		req, err := http.NewRequest("GET", target.Host, nil)
-		if err != nil {
-			log.Errorf("Error running http probe: %s", err)
-		}
-		// Create a httpstat powered context
-		var result httpstat.Result
-		ctx := httpstat.WithHTTPStat(req.Context(), &result)
-		req = req.WithContext(ctx)
-		// Send request by default HTTP client
-		client := http.DefaultClient
-		res, err := client.Do(req)
-		if err != nil {
-			log.Errorf("Error running http probe: %s", err)
-		}
-		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
-			log.Fatal(err)
-		}
-		res.Body.Close()
+	for i:=0;i<target.BatchSize;i++ {
 
-		con := int(result.TCPConnection / time.Millisecond)
+		j := 0
 
-		if con < min {
-			min = con
-		}
-		if con > max {
-			max = con
-		}
-		avg += con
+		min := intsets.MaxInt
+		max := 0
+		avg := 0
 
-		i++
-		if i == target.Probes {
-			avg = avg / target.Probes
-			break
+		for {
+			req, err := http.NewRequest("GET", target.Host, nil)
+			if err != nil {
+				log.Errorf("Error running http probe: %s", err)
+			}
+			// Create a httpstat powered context
+			var result httpstat.Result
+			ctx := httpstat.WithHTTPStat(req.Context(), &result)
+			req = req.WithContext(ctx)
+			// Send request by default HTTP client
+			client := http.DefaultClient
+			res, err := client.Do(req)
+			if err != nil {
+				log.Errorf("Error running http probe: %s", err)
+			}
+			if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+				log.Fatal(err)
+			}
+			res.Body.Close()
+
+			con := int(result.TCPConnection / time.Millisecond)
+
+			if con < min {
+				min = con
+			}
+			if con > max {
+				max = con
+			}
+			avg += con
+
+			j++
+			if j == target.Probes {
+				avg = avg / target.Probes
+				break
+			}
 		}
+
+		response[i] = ResponsePacket{
+			ProbeName:  probeName,
+			ProbeType:  target.ProbeType,
+			TargetName: target.Name,
+			MinRTT:     int64(min),
+			MaxRTT:     int64(max),
+			Median:     int64(avg),
+			NumProbes:  target.Probes,
+			Timestamp:  time.Now()}
 	}
-
-	response := make([]ResponsePacket, 1)
-	response[0] = ResponsePacket{
-		ProbeName:  probeName,
-		ProbeType:  target.ProbeType,
-		TargetName: target.Name,
-		MinRTT:     int64(min),
-		MaxRTT:     int64(max),
-		Median:     int64(avg),
-		NumProbes:  target.Probes,
-		Timestamp:  time.Now()}
-
 	return response
 }
 
