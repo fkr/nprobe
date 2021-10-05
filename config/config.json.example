@@ -5,7 +5,7 @@
     "org": "nprobe",
     "bucket": "nprobe"
   },
-  "probes": [{
+  "satellites": [{
     "name": "localhost-probe",
     "secret": "SECRET-IDENTIFIER",
     "targets": ["server1", "server2"]
@@ -20,19 +20,22 @@
       "host": "foo.example.com",
       "probe_type": "icmp",
       "probes": 5,
-      "interval": 10
+      "interval": 10,
+      "batch_size": 5
     },
     "server2": {
       "host": "bar.example.com",
       "probe_type": "icmp",
       "probes": 5,
-      "interval": 10
+      "interval": 10,
+      "batch_size": 5
     },
     "server3": {
       "host": "https://foobar.example.com/",
       "probe_type": "http",
       "probes": 5,
-      "interval": 10
+      "interval": 10,
+      "batch_size": 5
     }
   }
 }
