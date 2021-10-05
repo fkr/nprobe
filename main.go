@@ -26,9 +26,9 @@ import (
 type Configuration struct {
 	Authorization string              `mapstructure:"authorization"`
 	Debug         bool                `mapstructure:"debug"`
-	Database      InfluxConfiguration `mapstructure:"database"`
-	Probes        []Probe             `mapstructure:"probes"`
-	Privileged    bool                `mapstructure:"privileged"`
+	Database   InfluxConfiguration `mapstructure:"database"`
+	Satellites []Satellite         `mapstructure:"satellites"`
+	Privileged bool                `mapstructure:"privileged"`
 	Targets       map[string]Target   `mapstructure:"targets"`
 }
 
@@ -50,15 +50,15 @@ type ErrorPacket struct {
 	Detail string `json:"detail"`
 }
 
-type Probe struct {
+type Satellite struct {
 	Name    string   `mapstructure:"name"`
 	Secret  string   `mapstructure:"secret"`
 	Targets []string `mapstructure:"targets"`
 }
 
 type ResponsePacket struct {
-	ProbeName  string    `mapstructure:"probe_name"`
-	TargetName string    `mapstructure:"target_name"`
+	SatelliteName string `mapstructure:"satellite_name"`
+	TargetName    string `mapstructure:"target_name"`
 	ProbeType  string    `mapstructure:"probe_type"`
 	MinRTT     int64     `mapstructure:"min_rtt"`
 	MaxRTT     int64     `mapstructure:"max_rtt"`
@@ -100,7 +100,7 @@ func main() {
 
 	configFile := flag.String("config", "config/config.json", "config file")
 	debug := flag.Bool("debug", false, "enable debug mode")
-	mode := flag.String("mode", "probe", "head / probe")
+	mode := flag.String("mode", "satellite", "head / satellite")
 	headNode := flag.String("head", "", "fqdn / ip of head node")
 	privileged := flag.Bool("privileged", false, "enable privileged mode")
 	probeName := flag.String("name", hostname, "name of probe")
@@ -134,11 +134,11 @@ func main() {
 
 		router.HandleFunc("/config", ConfigReload).Headers("X-Authorization", Config.Authorization).Methods("POST")
 		router.HandleFunc("/version", VersionRequest).Methods("GET")
-		router.HandleFunc("/probes/{name}", GetProbe).Methods("GET")
+		router.HandleFunc("/satellites/{name}", GetProbe).Methods("GET")
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
 		log.Fatal(http.ListenAndServe(":8000", router))
 	} else {
-		request, _ := http.NewRequest("GET", *headNode+"probes/"+*probeName, nil)
+		request, _ := http.NewRequest("GET", *headNode+"satellites/"+*probeName, nil)
 		request.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 		client := &http.Client{}
 		response, err := client.Do(request)
@@ -181,7 +181,7 @@ func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup
 		var r = []ResponsePacket{}
 
 		//if k.ProbeType != "icmp" && k.ProbeType != "http" {
-		//	r = runExternalProbe(k.Host, k.Probes, k.ProbeType)
+		//	r = runExternalProbe(k.Host, k.Satellites, k.ProbeType)
 		//}
 		if k.ProbeType == "icmp" {
 			r = k.ProbeIcmp(probeName)
@@ -210,20 +210,20 @@ func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup
 
 func GetProbe(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	for _, probe := range Config.Probes {
-		if probe.Name == params["name"] {
-			if r.Header.Get("X-Authorization") == probe.Secret {
+	for _, satellite := range Config.Satellites {
+		if satellite.Name == params["name"] {
+			if r.Header.Get("X-Authorization") == satellite.Secret {
 
-				var targets []Target = make([]Target, len(probe.Targets))
+				var targets []Target = make([]Target, len(satellite.Targets))
 
 				var i = 0
 
-				for _, k := range probe.Targets {
+				for _, k := range satellite.Targets {
 					targets[i] = Config.Targets[k]
 					i++
 				}
 
-				log.Debugf("Probe '%s' is receiving these targets: %+v", probe.Name, targets)
+				log.Debugf("Satellite '%s' is receiving these targets: %+v", satellite.Name, targets)
 
 				json.NewEncoder(w).Encode(targets)
 				return
@@ -254,7 +254,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 		p := influxdb2.NewPointWithMeasurement("stat").
 			AddTag("unit", "milliseconds").
 			AddTag("target", responsePacket.TargetName).
-			AddTag("probe", responsePacket.ProbeName).
+			AddTag("probe", responsePacket.SatelliteName).
 			AddField("avg", responsePacket.Median).
 			AddField("max", responsePacket.MaxRTT).
 			AddField("min", responsePacket.MinRTT).
@@ -287,14 +287,14 @@ func (target *Target) ProbeIcmp(probeName string) []ResponsePacket {
 		stats := pinger.Statistics() // get send/receive/rtt stats
 
 		response[i] = ResponsePacket{
-			ProbeName:  probeName,
-			ProbeType:  target.ProbeType,
-			TargetName: target.Name,
-			MinRTT:     stats.MinRtt.Nanoseconds() / 1000000,
-			MaxRTT:     stats.MaxRtt.Nanoseconds() / 1000000,
-			Median:     stats.AvgRtt.Nanoseconds() / 1000000,
-			NumProbes:  target.Probes,
-			Timestamp:  time.Now()}
+			SatelliteName: probeName,
+			ProbeType:     target.ProbeType,
+			TargetName:    target.Name,
+			MinRTT:        stats.MinRtt.Nanoseconds() / 1000000,
+			MaxRTT:        stats.MaxRtt.Nanoseconds() / 1000000,
+			Median:        stats.AvgRtt.Nanoseconds() / 1000000,
+			NumProbes:     target.Probes,
+			Timestamp:     time.Now()}
 	}
 	return response
 }
@@ -349,14 +349,14 @@ func (target *Target) probeHttp(probeName string) []ResponsePacket {
 		}
 
 		response[i] = ResponsePacket{
-			ProbeName:  probeName,
-			ProbeType:  target.ProbeType,
-			TargetName: target.Name,
-			MinRTT:     int64(min),
-			MaxRTT:     int64(max),
-			Median:     int64(avg),
-			NumProbes:  target.Probes,
-			Timestamp:  time.Now()}
+			SatelliteName: probeName,
+			ProbeType:     target.ProbeType,
+			TargetName:    target.Name,
+			MinRTT:        int64(min),
+			MaxRTT:        int64(max),
+			Median:        int64(avg),
+			NumProbes:     target.Probes,
+			Timestamp:     time.Now()}
 	}
 	return response
 }
