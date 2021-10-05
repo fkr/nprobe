@@ -26,9 +26,9 @@ import (
 type Configuration struct {
 	Authorization string              `mapstructure:"authorization"`
 	Debug         bool                `mapstructure:"debug"`
-	Database   InfluxConfiguration `mapstructure:"database"`
-	Satellites []Satellite         `mapstructure:"satellites"`
-	Privileged bool                `mapstructure:"privileged"`
+	Database      InfluxConfiguration `mapstructure:"database"`
+	Satellites    []Satellite         `mapstructure:"satellites"`
+	Privileged    bool                `mapstructure:"privileged"`
 	Targets       map[string]Target   `mapstructure:"targets"`
 }
 
@@ -57,14 +57,14 @@ type Satellite struct {
 }
 
 type ResponsePacket struct {
-	SatelliteName string `mapstructure:"satellite_name"`
-	TargetName    string `mapstructure:"target_name"`
-	ProbeType  string    `mapstructure:"probe_type"`
-	MinRTT     int64     `mapstructure:"min_rtt"`
-	MaxRTT     int64     `mapstructure:"max_rtt"`
-	Median     int64     `mapstructure:"median"`
-	NumProbes  int       `mapstructure:"num_probes"`
-	Timestamp  time.Time `mapstructure:"timestamp"`
+	SatelliteName string    `mapstructure:"satellite_name"`
+	TargetName    string    `mapstructure:"target_name"`
+	ProbeType     string    `mapstructure:"probe_type"`
+	MinRTT        int64     `mapstructure:"min_rtt"`
+	MaxRTT        int64     `mapstructure:"max_rtt"`
+	Median        int64     `mapstructure:"median"`
+	NumProbes     int       `mapstructure:"num_probes"`
+	Timestamp     time.Time `mapstructure:"timestamp"`
 }
 
 type Target struct {
@@ -275,7 +275,7 @@ func (target *Target) ProbeIcmp(probeName string) []ResponsePacket {
 	}
 	pinger.SetPrivileged(Config.Privileged)
 
-	for i:=0;i<target.BatchSize;i++ {
+	for i := 0; i < target.BatchSize; i++ {
 
 		pinger.Count = target.Probes
 
@@ -303,7 +303,7 @@ func (target *Target) probeHttp(probeName string) []ResponsePacket {
 
 	response := make([]ResponsePacket, target.BatchSize)
 
-	for i:=0;i<target.BatchSize;i++ {
+	for i := 0; i < target.BatchSize; i++ {
 
 		j := 0
 
