@@ -57,9 +57,13 @@ type Satellite struct {
 }
 
 type ResponsePacket struct {
-	SatelliteName string    `mapstructure:"satellite_name"`
-	TargetName    string    `mapstructure:"target_name"`
-	ProbeType     string    `mapstructure:"probe_type"`
+	SatelliteName string  `mapstructure:"satellite_name"`
+	TargetName    string  `mapstructure:"target_name"`
+	ProbeType     string  `mapstructure:"probe_type"`
+	Probes        []Probe `mapstructure:"probes"`
+}
+
+type Probe struct {
 	MinRTT        int64     `mapstructure:"min_rtt"`
 	MaxRTT        int64     `mapstructure:"max_rtt"`
 	Median        int64     `mapstructure:"median"`
@@ -178,7 +182,7 @@ func ConfigReload(w http.ResponseWriter, r *http.Request) {
 func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup) {
 	for {
 
-		var r = []ResponsePacket{}
+		var r = ResponsePacket{}
 
 		//if k.ProbeType != "icmp" && k.ProbeType != "http" {
 		//	r = runExternalProbe(k.Host, k.Satellites, k.ProbeType)
@@ -241,31 +245,31 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
 	log.Debugf("%+v", params)
 
-	var responsePackets []ResponsePacket
-	_ = json.NewDecoder(r.Body).Decode(&responsePackets)
+	var responsePacket ResponsePacket
+	_ = json.NewDecoder(r.Body).Decode(&responsePacket)
 
-	log.Debugf("%+v", responsePackets)
+	log.Debugf("%+v", responsePacket)
 
 	// user blocking write client for writes to desired bucket
 	writeAPI := Client.WriteAPI(Config.Database.Org, Config.Database.Bucket)
 	// create point using fluent style
 
-	for _, responsePacket := range responsePackets {
+	for _, probe := range responsePacket.Probes {
 		p := influxdb2.NewPointWithMeasurement("stat").
 			AddTag("unit", "milliseconds").
 			AddTag("target", responsePacket.TargetName).
 			AddTag("probe", responsePacket.SatelliteName).
-			AddField("avg", responsePacket.Median).
-			AddField("max", responsePacket.MaxRTT).
-			AddField("min", responsePacket.MinRTT).
-			SetTime(responsePacket.Timestamp)
+			AddField("avg", probe.Median).
+			AddField("max", probe.MaxRTT).
+			AddField("min", probe.MinRTT).
+			SetTime(probe.Timestamp)
 		writeAPI.WritePoint(p)
 	}
 }
 
-func (target *Target) ProbeIcmp(probeName string) []ResponsePacket {
+func (target *Target) ProbeIcmp(probeName string) ResponsePacket {
 
-	response := make([]ResponsePacket, target.BatchSize)
+	probes := make([]Probe, target.BatchSize)
 	pinger, err := ping.NewPinger(target.Host)
 	if err != nil {
 		log.Errorf("Pinger error: %s\n", err)
@@ -286,22 +290,27 @@ func (target *Target) ProbeIcmp(probeName string) []ResponsePacket {
 
 		stats := pinger.Statistics() // get send/receive/rtt stats
 
-		response[i] = ResponsePacket{
-			SatelliteName: probeName,
-			ProbeType:     target.ProbeType,
-			TargetName:    target.Name,
+		probes[i] = Probe{
 			MinRTT:        stats.MinRtt.Nanoseconds() / 1000000,
 			MaxRTT:        stats.MaxRtt.Nanoseconds() / 1000000,
 			Median:        stats.AvgRtt.Nanoseconds() / 1000000,
 			NumProbes:     target.Probes,
 			Timestamp:     time.Now()}
 	}
+
+	response := ResponsePacket{
+		SatelliteName: probeName,
+		ProbeType:     target.ProbeType,
+		TargetName:    target.Name,
+		Probes:        probes,
+	}
+
 	return response
 }
 
-func (target *Target) probeHttp(probeName string) []ResponsePacket {
+func (target *Target) probeHttp(probeName string) ResponsePacket {
 
-	response := make([]ResponsePacket, target.BatchSize)
+	probes := make([]Probe, target.BatchSize)
 
 	for i := 0; i < target.BatchSize; i++ {
 
@@ -348,16 +357,21 @@ func (target *Target) probeHttp(probeName string) []ResponsePacket {
 			}
 		}
 
-		response[i] = ResponsePacket{
-			SatelliteName: probeName,
-			ProbeType:     target.ProbeType,
-			TargetName:    target.Name,
+		probes[i] = Probe{
 			MinRTT:        int64(min),
 			MaxRTT:        int64(max),
 			Median:        int64(avg),
 			NumProbes:     target.Probes,
 			Timestamp:     time.Now()}
 	}
+
+	response := ResponsePacket{
+		SatelliteName: probeName,
+		ProbeType:     target.ProbeType,
+		TargetName:    target.Name,
+		Probes:        probes,
+	}
+
 	return response
 }
 
