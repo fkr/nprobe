@@ -64,11 +64,11 @@ type ResponsePacket struct {
 }
 
 type Probe struct {
-	MinRTT        int64     `mapstructure:"min_rtt"`
-	MaxRTT        int64     `mapstructure:"max_rtt"`
-	Median        int64     `mapstructure:"median"`
-	NumProbes     int       `mapstructure:"num_probes"`
-	Timestamp     time.Time `mapstructure:"timestamp"`
+	MinRTT    int64     `mapstructure:"min_rtt"`
+	MaxRTT    int64     `mapstructure:"max_rtt"`
+	Median    int64     `mapstructure:"median"`
+	NumProbes int       `mapstructure:"num_probes"`
+	Timestamp time.Time `mapstructure:"timestamp"`
 }
 
 type Target struct {
@@ -291,11 +291,11 @@ func (target *Target) ProbeIcmp(probeName string) ResponsePacket {
 		stats := pinger.Statistics() // get send/receive/rtt stats
 
 		probes[i] = Probe{
-			MinRTT:        stats.MinRtt.Nanoseconds() / 1000000,
-			MaxRTT:        stats.MaxRtt.Nanoseconds() / 1000000,
-			Median:        stats.AvgRtt.Nanoseconds() / 1000000,
-			NumProbes:     target.Probes,
-			Timestamp:     time.Now()}
+			MinRTT:    stats.MinRtt.Nanoseconds() / 1000000,
+			MaxRTT:    stats.MaxRtt.Nanoseconds() / 1000000,
+			Median:    stats.AvgRtt.Nanoseconds() / 1000000,
+			NumProbes: target.Probes,
+			Timestamp: time.Now()}
 	}
 
 	response := ResponsePacket{
@@ -358,11 +358,11 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 		}
 
 		probes[i] = Probe{
-			MinRTT:        int64(min),
-			MaxRTT:        int64(max),
-			Median:        int64(avg),
-			NumProbes:     target.Probes,
-			Timestamp:     time.Now()}
+			MinRTT:    int64(min),
+			MaxRTT:    int64(max),
+			Median:    int64(avg),
+			NumProbes: target.Probes,
+			Timestamp: time.Now()}
 	}
 
 	response := ResponsePacket{
