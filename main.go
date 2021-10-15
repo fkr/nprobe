@@ -152,7 +152,7 @@ func main() {
 			headUrl = "http://"
 		}
 
-		request, _ := http.NewRequest("GET", headUrl+ *headNode+ "/satellites/"+*probeName, nil)
+		request, _ := http.NewRequest("GET", headUrl+*headNode+"/satellites/"+*probeName, nil)
 		request.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 
 		t := &http.Transport{}
