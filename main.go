@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -108,6 +109,8 @@ func main() {
 	headNode := flag.String("head", "", "fqdn / ip of head node")
 	privileged := flag.Bool("privileged", false, "enable privileged mode")
 	probeName := flag.String("name", hostname, "name of probe")
+	notls := flag.Bool("notls", false, "disable use of tls")
+	insecureTls := flag.Bool("insecure-tls", false, "disable use of tls cert checking")
 
 	flag.Parse()
 
@@ -142,9 +145,27 @@ func main() {
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
 		log.Fatal(http.ListenAndServe(":8000", router))
 	} else {
-		request, _ := http.NewRequest("GET", *headNode+"satellites/"+*probeName, nil)
+
+		headUrl := "https://"
+
+		if !*notls {
+			headUrl = "http://"
+		}
+
+		request, _ := http.NewRequest("GET", headUrl+ *headNode+ "/satellites/"+*probeName, nil)
 		request.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
-		client := &http.Client{}
+
+		t := &http.Transport{}
+
+		if !*insecureTls {
+			t = &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			}
+		}
+		client := &http.Client{Transport: t, Timeout: 15 * time.Second}
+
 		response, err := client.Do(request)
 		if err != nil {
 			log.Fatalf("Error retrieving configuration from head: %s\n", err)
