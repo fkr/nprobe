@@ -201,6 +201,7 @@ func ConfigReload(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for {
 
 		var r = ResponsePacket{}
@@ -230,7 +231,6 @@ func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup
 
 		time.Sleep(time.Duration(k.Interval) * time.Second)
 	}
-	defer wg.Done()
 }
 
 func GetProbe(w http.ResponseWriter, r *http.Request) {
@@ -239,7 +239,7 @@ func GetProbe(w http.ResponseWriter, r *http.Request) {
 		if satellite.Name == params["name"] {
 			if r.Header.Get("X-Authorization") == satellite.Secret {
 
-				var targets []Target = make([]Target, len(satellite.Targets))
+				var targets = make([]Target, len(satellite.Targets))
 
 				var i = 0
 
@@ -250,7 +250,11 @@ func GetProbe(w http.ResponseWriter, r *http.Request) {
 
 				log.Debugf("Satellite '%s' is receiving these targets: %+v", satellite.Name, targets)
 
-				json.NewEncoder(w).Encode(targets)
+				err := json.NewEncoder(w).Encode(targets)
+
+				if err != nil {
+					log.Errorf("Error while encoding targets: %s", err)
+				}
 				return
 			} else {
 				handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
@@ -433,7 +437,11 @@ func commonMiddleware(next http.Handler) http.Handler {
 }
 
 func VersionRequest(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\" }", version)))
+	_, err := w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\" }", version)))
+
+	if err != nil {
+		log.Errorf("Error while writing to client: %s", err)
+	}
 }
 
 func dumpRequest(r *http.Request) {
