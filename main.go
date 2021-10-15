@@ -334,6 +334,7 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 			res, err := client.Do(req)
 			if err != nil {
 				log.Errorf("Error running http probe: %s", err)
+				break
 			}
 			if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
 				log.Fatal(err)
