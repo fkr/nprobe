@@ -21,12 +21,12 @@ import (
 )
 
 type Configuration struct {
-	Authorization string              `mapstructure:"authorization"`
-	Debug         bool                `mapstructure:"debug"`
-	Database      InfluxConfiguration `mapstructure:"database"`
-	Satellites    []Satellite         `mapstructure:"satellites"`
-	Privileged    bool                `mapstructure:"privileged"`
-	Targets       map[string]Target   `mapstructure:"targets"`
+	Authorization string               `mapstructure:"authorization"`
+	Debug         bool                 `mapstructure:"debug"`
+	Database      InfluxConfiguration  `mapstructure:"database"`
+	Satellites    map[string]Satellite `mapstructure:"satellites"`
+	Privileged    bool                 `mapstructure:"privileged"`
+	Targets       map[string]Target    `mapstructure:"targets"`
 }
 
 type InfluxConfiguration struct {
@@ -48,9 +48,11 @@ type ErrorPacket struct {
 }
 
 type Satellite struct {
-	Name    string   `mapstructure:"name"`
-	Secret  string   `mapstructure:"secret"`
-	Targets []string `mapstructure:"targets"`
+	Name        string   `mapstructure:"name"`
+	Secret      string   `mapstructure:"secret"`
+	Targets     []string `mapstructure:"targets"`
+	LastData	time.Time `mapstructure:"last_data"`
+	Health	    bool	`mapstructure:"health"`
 }
 
 type ResponsePacket struct {
@@ -201,33 +203,32 @@ func ConfigReload(w http.ResponseWriter, r *http.Request) {
 
 func GetProbe(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	for _, satellite := range Config.Satellites {
-		if satellite.Name == params["name"] {
-			if r.Header.Get("X-Authorization") == satellite.Secret {
 
-				var targets = make([]Target, len(satellite.Targets))
+	satellite := Config.Satellites[params["name"]]
 
-				var i = 0
+	 if r.Header.Get("X-Authorization") == satellite.Secret {
 
-				for _, k := range satellite.Targets {
-					targets[i] = Config.Targets[k]
-					i++
-				}
+		  var targets = make([]Target, len(satellite.Targets))
 
-				log.Debugf("Satellite '%s' is receiving these targets: %+v", satellite.Name, targets)
+		  var i = 0
 
-				err := json.NewEncoder(w).Encode(targets)
+		  for _, k := range satellite.Targets {
+			  targets[i] = Config.Targets[k]
+			  i++
+		  }
 
-				if err != nil {
-					log.Errorf("Error while encoding targets: %s", err)
-				}
-				return
-			} else {
-				handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
-				return
-			}
-		}
-	}
+		  log.Debugf("Satellite '%s' is receiving these targets: %+v", satellite.Name, targets)
+
+		  err := json.NewEncoder(w).Encode(targets)
+
+		  if err != nil {
+			  log.Errorf("Error while encoding targets: %s", err)
+		  }
+		  return
+	 } else {
+		  handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+		  return
+	 }
 	handleError(w, http.StatusBadRequest, r.RequestURI, "Misformed payload", nil)
 }
 
@@ -256,6 +257,13 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 			SetTime(probe.Timestamp)
 		writeAPI.WritePoint(p)
 	}
+
+	s := Config.Satellites[responsePacket.SatelliteName]
+	s.LastData = time.Now()
+
+	Config.Satellites[responsePacket.SatelliteName] = s
+
+	log.Debugf("Satellite data: %+v", s)
 }
 
 func handleError(w http.ResponseWriter, status int, source string, title string, err error) {

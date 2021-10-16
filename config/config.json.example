@@ -5,16 +5,16 @@
     "org": "nprobe",
     "bucket": "nprobe"
   },
-  "satellites": [{
-    "name": "localhost-probe",
-    "secret": "SECRET-IDENTIFIER",
-    "targets": ["server1", "server2"]
-  },
-  {
-      "name": "probe.example.com",
+  "satellites": {
+    "localhost-probe": {
+      "secret": "SECRET-IDENTIFIER",
+      "targets": ["server1", "server2"]
+    },
+    "probe.example.com": {
       "secret": "A-SECOND-SECRET-IDENTIFIER",
       "targets": ["server1", "server2", "server3"]
-    }],
+    }
+  },
   "targets": {
     "server1": {
       "host": "foo.example.com",
