@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"flag"
@@ -140,9 +141,10 @@ func main() {
 		router.Use(commonMiddleware)
 
 		router.HandleFunc("/config", ConfigReload).Headers("X-Authorization", Config.Authorization).Methods("POST")
-		router.HandleFunc("/version", VersionRequest).Methods("GET")
+		router.HandleFunc("/healthz", HealthRequest).Methods("GET")
 		router.HandleFunc("/satellites/{name}", GetProbe).Methods("GET")
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
+		router.HandleFunc("/version", VersionRequest).Methods("GET")
 		log.Fatal(http.ListenAndServe(":8000", router))
 	} else {
 
@@ -437,6 +439,41 @@ func commonMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func HealthRequest(w http.ResponseWriter, r *http.Request) {
+
+	log.Infof("Running Health-Check")
+	msg := "Health Check not ok"
+
+	authHeader := r.Header.Get("X-Authorization")
+	authedRequest := false
+
+	if authHeader == Config.Authorization {
+		authedRequest = true
+	}
+
+	health, err := Client.Health(context.Background())
+
+	if err != nil {
+
+		log.Printf("Influx Health Check failed: %s", err)
+
+		if authedRequest {
+			 if health != nil {
+				 msg = fmt.Sprintf("Influx Error: %s", health.Message)
+			 }
+		} else {
+			 // for unauthed requests to /health we don't want to leak the actual error
+			 err = nil
+		}
+
+		handleError(w, http.StatusServiceUnavailable, "/healthz", msg, err)
+		return
+	}
+
+	log.Info("Health-Check completed OK")
+}
+
 
 func VersionRequest(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\" }", version)))
