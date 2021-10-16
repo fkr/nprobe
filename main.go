@@ -148,7 +148,7 @@ func main() {
 
 		headUrl := "https://"
 
-		if !*notls {
+		if *notls {
 			headUrl = "http://"
 		}
 
