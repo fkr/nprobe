@@ -152,7 +152,9 @@ func main() {
 			headUrl = "http://"
 		}
 
-		request, _ := http.NewRequest("GET", headUrl+*headNode+"/satellites/"+*probeName, nil)
+		headUrl = headUrl + *headNode + "/"
+
+		request, _ := http.NewRequest("GET", headUrl +"satellites/"+*probeName, nil)
 		request.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 
 		t := &http.Transport{}
@@ -185,7 +187,7 @@ func main() {
 
 			for _, k := range targets {
 				wg.Add(1)
-				go HandleProbe(k, *headNode, *probeName, &wg)
+				go HandleProbe(k, headUrl, *probeName, &wg)
 			}
 			wg.Wait()
 		}
@@ -200,7 +202,7 @@ func ConfigReload(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup) {
+func HandleProbe(k Target, headUrl string, probeName string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
 
@@ -216,7 +218,7 @@ func HandleProbe(k Target, headnode string, probeName string, wg *sync.WaitGroup
 			r = k.probeHttp(probeName)
 		}
 
-		url := headnode + "targets/" + k.Name
+		url := headUrl + "targets/" + k.Name
 
 		jsonValue, _ := json.Marshal(r)
 		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
