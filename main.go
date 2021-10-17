@@ -49,7 +49,7 @@ type ErrorPacket struct {
 
 type Satellite struct {
 	Name        string   `mapstructure:"name"`
-	Secret      string   `mapstructure:"secret"`
+	Secret      string   `mapstructure:"secret" json:"-"`
 	Targets     []string `mapstructure:"targets"`
 	LastData	time.Time `mapstructure:"last_data"`
 	Health	    bool	`mapstructure:"health"`
