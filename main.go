@@ -139,7 +139,7 @@ func main() {
 
 		router.HandleFunc("/config", ConfigReload).Headers("X-Authorization", Config.Authorization).Methods("POST")
 		router.HandleFunc("/healthz", HealthRequest).Methods("GET")
-		router.HandleFunc("/satellites/{name}", GetProbe).Methods("GET")
+		router.HandleFunc("/satellites/{name}/targets", GetTargets).Methods("GET")
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
 		router.HandleFunc("/version", VersionRequest).Methods("GET")
 		log.Fatal(http.ListenAndServe(":8000", router))
@@ -153,7 +153,7 @@ func main() {
 
 		headUrl = headUrl + *headNode + "/"
 
-		request, _ := http.NewRequest("GET", headUrl +"satellites/"+*probeName, nil)
+		request, _ := http.NewRequest("GET", headUrl +"satellites/"+*probeName+"/targets", nil)
 		request.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 
 		t := &http.Transport{}
@@ -201,7 +201,7 @@ func ConfigReload(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func GetProbe(w http.ResponseWriter, r *http.Request) {
+func GetTargets(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
 	satellite := Config.Satellites[params["name"]]
