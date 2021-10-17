@@ -171,15 +171,15 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error retrieving configuration from head: %s\n", err)
 		} else {
-
 			if response.StatusCode != 200 {
-				if response.StatusCode == 404 {
-					log.Fatalf("Error talking to head - validate that your satellite name is correct: %s", response.Status)
-				}
-				if response.StatusCode == 403 {
+				switch response.StatusCode {
+				case 403:
 					log.Fatalf("Error talking to head - validate that your authorization is correct: %s", response.Status)
+				case 404:
+					log.Fatalf("Error talking to head - validate that your satellite name is correct: %s", response.Status)
+				default:
+					log.Fatalf("Error talking to head: %s", response.Status)
 				}
-				log.Fatalf("Error talking to head: %s", response.Status)
 			}
 
 			data, _ := ioutil.ReadAll(response.Body)
