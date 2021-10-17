@@ -139,6 +139,7 @@ func main() {
 
 		router.HandleFunc("/config", ConfigReload).Headers("X-Authorization", Config.Authorization).Methods("POST")
 		router.HandleFunc("/healthz", HealthRequest).Methods("GET")
+		router.HandleFunc("/satellites/{name}", GetSatellite).Methods("GET")
 		router.HandleFunc("/satellites/{name}/targets", GetTargets).Methods("GET")
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
 		router.HandleFunc("/version", VersionRequest).Methods("GET")
@@ -208,6 +209,32 @@ func ConfigReload(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Config Reload triggered")
 	parseConfig(&ConfigFile)
 }
+
+
+func GetSatellite(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	satellite, found := Config.Satellites[params["name"]]
+
+	if ! found {
+		handleError(w, http.StatusNotFound, r.RequestURI, "Requested item not found", nil)
+		return
+	}
+
+	if r.Header.Get("X-Authorization") == satellite.Secret {
+		err := json.NewEncoder(w).Encode(satellite)
+
+		if err != nil {
+			log.Errorf("Error while encoding satellite: %s", err)
+		}
+		return
+	} else {
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+		return
+	}
+	handleError(w, http.StatusBadRequest, r.RequestURI, "Misformed payload", nil)
+}
+
 
 func GetTargets(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
