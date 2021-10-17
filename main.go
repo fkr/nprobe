@@ -256,7 +256,7 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 			  i++
 		  }
 
-		  log.Debugf("Satellite '%s' is receiving these targets: %+v", params["name"], targets)
+		  log.Debugf("Satellite '%s' is receiving these targets: %+v", satellite.Name, targets)
 
 		  err := json.NewEncoder(w).Encode(targets)
 
@@ -391,13 +391,17 @@ func parseConfig(configPtr *string) {
 	}
 
 	log.Infof("Using config file: %s\n", viper.ConfigFileUsed())
-
 	err = viper.Unmarshal(&Config)
 	if err != nil {
 		log.Fatalf("unable to decode into struct, %v", err)
 	}
 
+
 	// inject name from map names
+	for name, s := range Config.Satellites {
+		s.Name = name
+		Config.Satellites[name] = s
+	}
 	for name, k := range Config.Targets {
 		k.Name = name
 		Config.Targets[name] = k
