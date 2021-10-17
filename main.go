@@ -171,6 +171,17 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error retrieving configuration from head: %s\n", err)
 		} else {
+
+			if response.StatusCode != 200 {
+				if response.StatusCode == 404 {
+					log.Fatalf("Error talking to head - validate that your satellite name is correct: %s", response.Status)
+				}
+				if response.StatusCode == 403 {
+					log.Fatalf("Error talking to head - validate that your authorization is correct: %s", response.Status)
+				}
+				log.Fatalf("Error talking to head: %s", response.Status)
+			}
+
 			data, _ := ioutil.ReadAll(response.Body)
 			log.Debugf("Config received:\n%s", data)
 			var targets []Target
@@ -204,9 +215,14 @@ func ConfigReload(w http.ResponseWriter, r *http.Request) {
 func GetTargets(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
-	satellite := Config.Satellites[params["name"]]
+	satellite, found := Config.Satellites[params["name"]]
 
-	 if r.Header.Get("X-Authorization") == satellite.Secret {
+	if ! found {
+		handleError(w, http.StatusNotFound, r.RequestURI, "Requested item not found", nil)
+		return
+	}
+
+	if r.Header.Get("X-Authorization") == satellite.Secret {
 
 		  var targets = make([]Target, len(satellite.Targets))
 
