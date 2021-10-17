@@ -202,14 +202,12 @@ func main() {
 			wg.Wait()
 		}
 	}
-
 }
 
 func ConfigReload(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Config Reload triggered")
 	parseConfig(&ConfigFile)
 }
-
 
 func GetSatellite(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -234,7 +232,6 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 	}
 	handleError(w, http.StatusBadRequest, r.RequestURI, "Misformed payload", nil)
 }
-
 
 func GetTargets(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -357,7 +354,6 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Info("Health-Check completed OK")
 }
-
 
 func VersionRequest(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\" }", version)))
