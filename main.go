@@ -146,7 +146,6 @@ func main() {
 	} else {
 
 		headUrl := "https://"
-
 		if *notls {
 			headUrl = "http://"
 		}
@@ -206,10 +205,8 @@ func main() {
 }
 
 func ConfigReload(w http.ResponseWriter, r *http.Request) {
-
 	log.Infof("Config Reload triggered")
 	parseConfig(&ConfigFile)
-
 }
 
 func GetTargets(w http.ResponseWriter, r *http.Request) {
@@ -223,7 +220,6 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get("X-Authorization") == satellite.Secret {
-
 		  var targets = make([]Target, len(satellite.Targets))
 
 		  var i = 0
@@ -276,7 +272,6 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
 	s := Config.Satellites[responsePacket.SatelliteName]
 	s.LastData = time.Now()
-
 	Config.Satellites[responsePacket.SatelliteName] = s
 
 	log.Debugf("Satellite data: %+v", s)
@@ -306,7 +301,6 @@ func commonMiddleware(next http.Handler) http.Handler {
 }
 
 func HealthRequest(w http.ResponseWriter, r *http.Request) {
-
 	log.Infof("Running Health-Check")
 	msg := "Health Check not ok"
 
@@ -320,12 +314,11 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 	health, err := Client.Health(context.Background())
 
 	if err != nil {
-
 		log.Printf("Influx Health Check failed: %s", err)
 
 		if authedRequest {
 			 if health != nil {
-				 msg = fmt.Sprintf("Influx Error: %s", health.Message)
+				 msg = fmt.Sprintf("Influx Error: %s", &health.Message)
 			 }
 		} else {
 			 // for unauthed requests to /health we don't want to leak the actual error
@@ -335,7 +328,6 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 		handleError(w, http.StatusServiceUnavailable, "/healthz", msg, err)
 		return
 	}
-
 	log.Info("Health-Check completed OK")
 }
 
