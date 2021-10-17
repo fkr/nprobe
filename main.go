@@ -241,10 +241,10 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 			  log.Errorf("Error while encoding targets: %s", err)
 		  }
 		  return
-	 } else {
+	} else {
 		  handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		  return
-	 }
+	}
 	handleError(w, http.StatusBadRequest, r.RequestURI, "Misformed payload", nil)
 }
 
