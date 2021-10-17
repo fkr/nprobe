@@ -256,7 +256,7 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 			  i++
 		  }
 
-		  log.Debugf("Satellite '%s' is receiving these targets: %+v", satellite.Name, targets)
+		  log.Debugf("Satellite '%s' is receiving these targets: %+v", params["name"], targets)
 
 		  err := json.NewEncoder(w).Encode(targets)
 
