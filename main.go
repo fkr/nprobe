@@ -230,7 +230,6 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
 	}
-	handleError(w, http.StatusBadRequest, r.RequestURI, "Misformed payload", nil)
 }
 
 func GetTargets(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +264,6 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 		  handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		  return
 	}
-	handleError(w, http.StatusBadRequest, r.RequestURI, "Misformed payload", nil)
 }
 
 func SubmitTarget(w http.ResponseWriter, r *http.Request) {
@@ -303,7 +301,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
 func handleError(w http.ResponseWriter, status int, source string, title string, err error) {
 	errorResponse := ErrorResponse{Errors: []*ErrorPacket{
-		&ErrorPacket{
+		{
 			Status: strconv.Itoa(status),
 			Source: source,
 			Title:  title,
@@ -342,7 +340,7 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 
 		if authedRequest {
 			 if health != nil {
-				 msg = fmt.Sprintf("Influx Error: %s", &health.Message)
+				 msg = fmt.Sprintf("Influx Error: %s", *health.Message)
 			 }
 		} else {
 			 // for unauthed requests to /health we don't want to leak the actual error
