@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/go-ping/ping"
+	log "github.com/sirupsen/logrus"
 	"github.com/tcnksm/go-httpstat"
 	"golang.org/x/tools/container/intsets"
-	log "github.com/sirupsen/logrus"
 )
 
 func HandleProbe(k Target, headUrl string, probeName string, wg *sync.WaitGroup) {
