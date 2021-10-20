@@ -79,6 +79,9 @@ func (target *Target) ProbeIcmp(probeName string) ResponsePacket {
 			Median:    stats.AvgRtt.Nanoseconds() / 1000000,
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
+
+		log.Debugf("Sleeping for %d", target.Interval)
+		time.Sleep(time.Duration(target.Interval) * time.Second)
 	}
 
 	response := ResponsePacket{
@@ -97,13 +100,11 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 
 	for i := 0; i < target.BatchSize; i++ {
 
-		j := 0
-
 		min := intsets.MaxInt
 		max := 0
 		avg := 0
 
-		for {
+		for j := 0; j < target.Probes; j++ {
 			req, err := http.NewRequest("GET", target.Host, nil)
 			if err != nil {
 				log.Errorf("Error running http probe: %s", err)
@@ -122,9 +123,16 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 			if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
 				log.Fatal(err)
 			}
-			res.Body.Close()
+			result.End(time.Now())
+			err = res.Body.Close()
 
-			con := int(result.TCPConnection / time.Millisecond)
+			if err != nil {
+				log.Errorf("Error closing http request: %s", err)
+			}
+
+			log.Debugf("%+v\n", result)
+
+			con := int(result.Total(time.Now()) / time.Millisecond)
 
 			if con < min {
 				min = con
@@ -133,12 +141,6 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 				max = con
 			}
 			avg += con
-
-			j++
-			if j == target.Probes {
-				avg = avg / target.Probes
-				break
-			}
 		}
 
 		probes[i] = Probe{
@@ -147,6 +149,9 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 			Median:    int64(avg),
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
+
+		log.Debugf("Sleeping for %d", target.Interval)
+		time.Sleep(time.Duration(target.Interval) * time.Second)
 	}
 
 	response := ResponsePacket{
