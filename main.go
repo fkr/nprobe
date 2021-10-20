@@ -103,12 +103,12 @@ func main() {
 
 	configFile := flag.String("config", "config/config.json", "config file")
 	debug := flag.Bool("debug", false, "enable debug mode")
-	mode := flag.String("mode", "satellite", "head / satellite")
 	headNode := flag.String("head", "", "fqdn / ip of head node")
+	insecureTls := flag.Bool("insecure-tls", false, "disable use of tls cert checking")
+	mode := flag.String("mode", "satellite", "head / satellite")
+	notls := flag.Bool("notls", false, "disable use of tls")
 	privileged := flag.Bool("privileged", false, "enable privileged mode")
 	probeName := flag.String("name", hostname, "name of probe")
-	notls := flag.Bool("notls", false, "disable use of tls")
-	insecureTls := flag.Bool("insecure-tls", false, "disable use of tls cert checking")
 
 	flag.Parse()
 
