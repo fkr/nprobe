@@ -74,13 +74,13 @@ func (target *Target) ProbeIcmp(probeName string) ResponsePacket {
 		stats := pinger.Statistics() // get send/receive/rtt stats
 
 		probes[i] = Probe{
-			MinRTT:    stats.MinRtt.Nanoseconds() / 1000000,
-			MaxRTT:    stats.MaxRtt.Nanoseconds() / 1000000,
-			Median:    stats.AvgRtt.Nanoseconds() / 1000000,
+			MinRTT:    float64(stats.MinRtt.Nanoseconds()) / 1000000,
+			MaxRTT:    float64(stats.MaxRtt.Nanoseconds()) / 1000000,
+			Median:    float64(stats.AvgRtt.Nanoseconds()) / 1000000,
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
-		log.Debugf("Sleeping for %d", target.Interval)
+		log.Debugf("Probe '%s' of type '%s' sleeping for %d", target.Name, target.ProbeType, target.Interval)
 		time.Sleep(time.Duration(target.Interval) * time.Second)
 	}
 
