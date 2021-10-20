@@ -130,9 +130,8 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 				log.Errorf("Error closing http request: %s", err)
 			}
 
-			log.Debugf("%+v\n", result)
-
 			con := int(result.Total(time.Now()) / time.Millisecond)
+			log.Debugf("%s: %+v\n", target.Name, result)
 
 			if con < min {
 				min = con
