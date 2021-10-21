@@ -124,6 +124,10 @@ func main() {
 		Config.Privileged = true
 	}
 
+	if *headNode == "" {
+		*mode = "head"
+	}
+
 	log.Printf("Host '%s' running version: %s", *probeName, version)
 	log.Debugf("mode: %s", *mode)
 
