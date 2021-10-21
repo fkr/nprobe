@@ -63,9 +63,9 @@ type ResponsePacket struct {
 }
 
 type Probe struct {
-	MinRTT    int64     `mapstructure:"min_rtt"`
-	MaxRTT    int64     `mapstructure:"max_rtt"`
-	Median    int64     `mapstructure:"median"`
+	MinRTT    float64     `mapstructure:"min_rtt"`
+	MaxRTT    float64     `mapstructure:"max_rtt"`
+	Median    float64     `mapstructure:"median"`
 	NumProbes int       `mapstructure:"num_probes"`
 	Timestamp time.Time `mapstructure:"timestamp"`
 }

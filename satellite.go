@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/digitaljanitors/go-httpstat"
 	"github.com/go-ping/ping"
 	log "github.com/sirupsen/logrus"
-	"github.com/tcnksm/go-httpstat"
-	"golang.org/x/tools/container/intsets"
 )
 
 func HandleProbe(k Target, headUrl string, probeName string, wg *sync.WaitGroup) {
@@ -100,9 +100,9 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 
 	for i := 0; i < target.BatchSize; i++ {
 
-		min := intsets.MaxInt
-		max := 0
-		avg := 0
+		min := math.MaxFloat64
+		max := 0.0
+		avg := 0.0
 
 		for j := 0; j < target.Probes; j++ {
 			req, err := http.NewRequest("GET", target.Host, nil)
@@ -130,7 +130,7 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 				log.Errorf("Error closing http request: %s", err)
 			}
 
-			con := int(result.Total(time.Now()) / time.Millisecond)
+			con := float64(result.Total) / float64(time.Millisecond)
 			log.Debugf("%s: %+v\n", target.Name, result)
 
 			if con < min {
@@ -143,13 +143,13 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 		}
 
 		probes[i] = Probe{
-			MinRTT:    int64(min),
-			MaxRTT:    int64(max),
-			Median:    int64(avg),
+			MinRTT:    min,
+			MaxRTT:    max,
+			Median:    avg,
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
-		log.Debugf("Sleeping for %d", target.Interval)
+		log.Debugf("Probe '%s' of type '%s' sleeping for %d", target.Name, target.ProbeType, target.Interval)
 		time.Sleep(time.Duration(target.Interval) * time.Second)
 	}
 
