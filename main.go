@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -48,6 +50,7 @@ type ErrorPacket struct {
 }
 
 type Satellite struct {
+	Active      bool     `mapstructure:"active"`
 	Name        string   `mapstructure:"name"`
 	Secret      string   `mapstructure:"secret" json:"-"`
 	Targets     []string `mapstructure:"targets"`
@@ -172,14 +175,17 @@ func main() {
 			log.Fatalf("Error retrieving configuration from head: %s\n", err)
 		} else {
 			if response.StatusCode != 200 {
+				errorMsg, _ := ioutil.ReadAll(response.Body)
 				switch response.StatusCode {
 				case 403:
-					log.Fatalf("Error talking to head - validate that your authorization is correct: %s", response.Status)
+					log.Errorf("Error talking to head - validate that your authorization is correct: %s", response.Status)
 				case 404:
-					log.Fatalf("Error talking to head - validate that your satellite name is correct: %s", response.Status)
+					log.Errorf("Error talking to head - validate that your satellite name is correct: %s", response.Status)
 				default:
-					log.Fatalf("Error talking to head: %s", response.Status)
+					log.Errorf("Error talking to head: %s", response.Status)
 				}
+				log.Debugf("Error message: %s", errorMsg)
+				log.Fatalf("Abort - critical error")
 			}
 
 			data, _ := ioutil.ReadAll(response.Body)
@@ -237,33 +243,38 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 
 	satellite, found := Config.Satellites[params["name"]]
 
-	if ! found {
+	if !found {
 		handleError(w, http.StatusNotFound, r.RequestURI, "Requested item not found", nil)
 		return
 	}
 
-	if r.Header.Get("X-Authorization") == satellite.Secret {
-		  var targets = make([]Target, len(satellite.Targets))
-
-		  var i = 0
-
-		  for _, k := range satellite.Targets {
-			  targets[i] = Config.Targets[k]
-			  i++
-		  }
-
-		  log.Debugf("Satellite '%s' is receiving these targets: %+v", satellite.Name, targets)
-
-		  err := json.NewEncoder(w).Encode(targets)
-
-		  if err != nil {
-			  log.Errorf("Error while encoding targets: %s", err)
-		  }
-		  return
-	} else {
-		  handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
-		  return
+	if r.Header.Get("X-Authorization") != satellite.Secret {
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+		return
 	}
+
+	if !satellite.Active {
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", errors.New("satellite marked inactive"))
+		return
+	}
+
+	var targets = make([]Target, len(satellite.Targets))
+	var i = 0
+
+	for _, k := range satellite.Targets {
+		targets[i] = Config.Targets[k]
+		i++
+	}
+
+	log.Debugf("Satellite '%s' is receiving these targets: %+v", satellite.Name, targets)
+
+	err := json.NewEncoder(w).Encode(targets)
+
+	if err != nil {
+		log.Errorf("Error while encoding targets: %s", err)
+		handleError(w, http.StatusServiceUnavailable, r.RequestURI, "Error while encoding targets", err)
+	}
+	return
 }
 
 func SubmitTarget(w http.ResponseWriter, r *http.Request) {
@@ -275,6 +286,18 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewDecoder(r.Body).Decode(&responsePacket)
 
 	log.Debugf("%+v", responsePacket)
+
+	satellite := Config.Satellites[responsePacket.SatelliteName]
+
+	if r.Header.Get("X-Authorization") != satellite.Secret {
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+		return
+	}
+
+	if !satellite.Active {
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here - satellite is marked inactive", nil)
+		return
+	}
 
 	// user blocking write client for writes to desired bucket
 	writeAPI := Client.WriteAPI(Config.Database.Org, Config.Database.Bucket)
@@ -350,6 +373,36 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 		handleError(w, http.StatusServiceUnavailable, "/healthz", msg, err)
 		return
 	}
+
+	// check each satellite
+	for _, k := range Config.Satellites {
+		if k.Active {
+			last := k.LastData
+
+			// find interval
+			interval := math.MaxInt
+			for _, t := range k.Targets {
+				s := Config.Targets[t]
+				if s.Interval < interval {
+					interval = s.Interval
+				}
+			}
+
+			timeout := time.Now().Add(-time.Minute * time.Duration(int64(interval)))
+			if (last.Before(timeout)) {
+
+				if authedRequest {
+					msg = fmt.Sprintf("Probe '%s' has not come back in time. Last message from '%s'", k.Name, k.LastData)
+				} else {
+					msg = ""
+				}
+
+				handleError(w, http.StatusServiceUnavailable, "/healthz", msg, err)
+				return
+			}
+		}
+	}
+
 	log.Info("Health-Check completed OK")
 }
 
