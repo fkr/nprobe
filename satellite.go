@@ -41,9 +41,7 @@ func HandleProbe(k Target, headUrl string, probeName string, wg *sync.WaitGroup)
 			fmt.Printf("The HTTP request failed with error %s\n", err)
 		}
 
-		log.Printf("%+v", body)
-
-		time.Sleep(time.Duration(k.Interval) * time.Second)
+		log.Debugf("%+v", body)
 	}
 }
 
