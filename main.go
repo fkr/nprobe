@@ -258,7 +258,8 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !satellite.Active {
-		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", errors.New("satellite marked inactive"))
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here",
+					errors.New("satellite marked inactive"))
 		return
 	}
 
