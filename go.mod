@@ -1,6 +1,6 @@
 module nprobe
 
-go 1.15
+go 1.17
 
 require (
 	github.com/digitaljanitors/go-httpstat v0.2.1-0.20200331213148-166c91beed46
