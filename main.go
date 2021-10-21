@@ -283,7 +283,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	for _, probe := range responsePacket.Probes {
 		p := influxdb2.NewPointWithMeasurement("stat").
 			AddTag("unit", "milliseconds").
-			AddTag("target", responsePacket.TargetName).
+			AddTag("target", responsePacket.TargetName +"("+ responsePacket.ProbeType +")").
 			AddTag("probe", responsePacket.SatelliteName).
 			AddField("avg", probe.Median).
 			AddField("max", probe.MaxRTT).
