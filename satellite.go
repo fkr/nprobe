@@ -102,7 +102,6 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 
 		min := math.MaxFloat64
 		max := 0.0
-		avg := 0.0
 
 		for j := 0; j < target.Probes; j++ {
 			req, err := http.NewRequest("GET", target.Host, nil)
@@ -139,13 +138,12 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 			if con > max {
 				max = con
 			}
-			avg += con
 		}
 
 		probes[i] = Probe{
 			MinRTT:    min,
 			MaxRTT:    max,
-			Median:    avg,
+			Median:    (min+max)/2,
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
