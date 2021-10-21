@@ -80,6 +80,8 @@ func (target *Target) ProbeIcmp(probeName string) ResponsePacket {
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
+		log.Debugf("Probe '%s' of type '%s': Min: %d, Max: %d, Median: %d", target.Name, target.ProbeType,
+					probes[i].MinRTT, probes[i].MaxRTT, probes[i].Median)
 		log.Debugf("Probe '%s' of type '%s' sleeping for %d", target.Name, target.ProbeType, target.Interval)
 		time.Sleep(time.Duration(target.Interval) * time.Second)
 	}
