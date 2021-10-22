@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -38,7 +37,7 @@ func HandleProbe(k Target, headUrl string, probeName string, wg *sync.WaitGroup)
 		client2 := &http.Client{}
 		body, err := client2.Do(request2)
 		if err != nil {
-			fmt.Printf("The HTTP request failed with error %s\n", err)
+			log.Errorf("The HTTP request failed with error %s\n", err)
 		}
 
 		log.Debugf("%+v", body)
