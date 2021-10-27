@@ -3,12 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/digitaljanitors/go-httpstat"
@@ -16,20 +16,31 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func HandleProbe(k Target, headUrl string, probeName string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	for {
+func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if err, ok := r.(error); ok {
+				wk.Err = err
+			} else {
+				wk.Err = fmt.Errorf("Panic happened with %v", r)
+			}
+		} else {
+			wk.Err = err
+		}
+		ch <- wk
+	}()
 
+	for {
 		var r = ResponsePacket{}
 
-		if k.ProbeType == "icmp" {
-			r = k.ProbeIcmp(probeName)
+		if wk.Target.ProbeType == "icmp" {
+			r = wk.Target.probeIcmp(wk.ProbeName)
 		}
-		if k.ProbeType == "http" {
-			r = k.probeHttp(probeName)
+		if wk.Target.ProbeType == "http" {
+			r = wk.Target.probeHttp(wk.ProbeName)
 		}
 
-		url := headUrl + "targets/" + k.Name
+		url := wk.HeadUrl + "targets/" + wk.Target.Name
 
 		jsonValue, _ := json.Marshal(r)
 		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
@@ -44,7 +55,7 @@ func HandleProbe(k Target, headUrl string, probeName string, wg *sync.WaitGroup)
 	}
 }
 
-func (target *Target) ProbeIcmp(probeName string) ResponsePacket {
+func (target *Target) probeIcmp(probeName string) ResponsePacket {
 
 	probes := make([]Probe, target.BatchSize)
 	pinger, err := ping.NewPinger(target.Host)

@@ -13,7 +13,6 @@ import (
 	"net/http/httputil"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -80,6 +79,14 @@ type Target struct {
 	Probes    int    `mapstructure:"probes"`
 	Interval  int    `mapstructure:"interval"`
 	BatchSize int    `mapstructure:"batch_size"`
+}
+
+type Worker struct {
+	Target Target
+	HeadUrl string
+	ProbeName string
+	Id  int
+	Err error
 }
 
 var Config Configuration
@@ -203,13 +210,30 @@ func main() {
 				log.Fatalf("Error while processing configuration: %s", err)
 			}
 
-			var wg sync.WaitGroup
-
+			workerChan := make(chan *Worker, len(targets))
+			i := 0
 			for _, k := range targets {
-				wg.Add(1)
-				go HandleProbe(k, headUrl, *probeName, &wg)
+				wk := &Worker{
+					Target: k,
+					HeadUrl: headUrl,
+					ProbeName: *probeName,
+					Id: i}
+
+				log.Infof("Launching worker (%d) for probe '%s' type %s", i, wk.Target.Name, wk.Target.ProbeType)
+				go wk.HandleProbe(workerChan)
+				i++
 			}
-			wg.Wait()
+
+			// read the channel, it will block until something is written, then a new
+			// goroutine will start
+			for wk := range workerChan {
+				// log the error
+				log.Errorf("Worker %s (%d) stopped with err: %s", wk.Target.Name, wk.Id, wk.Err)
+				// reset err
+				wk.Err = nil
+				// a goroutine has ended, restart it
+				go wk.HandleProbe(workerChan)
+			}
 		}
 	}
 }
