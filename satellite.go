@@ -82,6 +82,7 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 			MinRTT:    float64(stats.MinRtt.Nanoseconds()) / 1000000,
 			MaxRTT:    float64(stats.MaxRtt.Nanoseconds()) / 1000000,
 			Median:    float64(stats.AvgRtt.Nanoseconds()) / 1000000,
+			Loss:	   stats.PacketLoss,
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 

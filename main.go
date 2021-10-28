@@ -68,6 +68,7 @@ type Probe struct {
 	MinRTT    float64     `mapstructure:"min_rtt"`
 	MaxRTT    float64     `mapstructure:"max_rtt"`
 	Median    float64     `mapstructure:"median"`
+	Loss	  float64     `mapstructure:"loss"`
 	NumProbes int       `mapstructure:"num_probes"`
 	Timestamp time.Time `mapstructure:"timestamp"`
 }
@@ -340,6 +341,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 			AddField("median", probe.Median).
 			AddField("max", probe.MaxRTT).
 			AddField("min", probe.MinRTT).
+			AddField("loss", probe.Loss).
 			SetTime(probe.Timestamp)
 		writeAPI.WritePoint(p)
 	}
