@@ -45,6 +45,7 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 		jsonValue, _ := json.Marshal(r)
 		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
 		request2.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
+		request2.Header.Set("X-Nprobe-Version", version)
 		client2 := &http.Client{}
 		body, err := client2.Do(request2)
 		if err != nil {

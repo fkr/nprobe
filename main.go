@@ -371,6 +371,7 @@ func commonMiddleware(next http.Handler) http.Handler {
 		dumpRequest(r)
 		w.Header().Add("Content-Type", "application/vnd.api+json")
 		w.Header().Add("X-Api-Version", apiVersion)
+		w.Header().Add("X-Nprobe-Version", version)
 		w.Header().Add("X-Powered-By", "nprobe")
 		next.ServeHTTP(w, r)
 	})
