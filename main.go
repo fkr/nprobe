@@ -17,7 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/influxdata/influxdb-client-go/v2"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -93,15 +93,18 @@ type Worker struct {
 var Config Configuration
 var ConfigFile string
 var Client influxdb2.Client
+var log *logrus.Logger
 
 const version = "0.0.1"
 const apiVersion = "0.0.1"
 
 func main() {
 
-	log.SetLevel(log.InfoLevel)
+	log = logrus.New()
 
-	log.SetFormatter(&log.TextFormatter{
+	log.SetLevel(logrus.InfoLevel)
+
+	log.SetFormatter(&logrus.TextFormatter{
 		DisableColors: true,
 		FullTimestamp: true,
 	})
@@ -124,7 +127,7 @@ func main() {
 	flag.Parse()
 
 	if *debug {
-		log.SetLevel(log.DebugLevel)
+		log.SetLevel(logrus.DebugLevel)
 		Config.Debug = true
 	}
 
@@ -136,8 +139,11 @@ func main() {
 		*mode = "head"
 	}
 
-	log.Printf("Host '%s' running version: %s", *probeName, version)
-	log.Debugf("mode: %s", *mode)
+	log.WithFields(logrus.Fields{
+		"host": *probeName,
+		"version": version,
+		"mode": *mode,
+	}).Info("nprobe is starting")
 
 	if *mode == "head" {
 
@@ -184,31 +190,37 @@ func main() {
 
 		response, err := client.Do(request)
 		if err != nil {
-			log.Fatalf("Error retrieving configuration from head: %s\n", err)
+			log.WithFields(logrus.Fields{"error": err,}).Fatal("Error retrieving configuration from head")
 		} else {
 			if response.StatusCode != 200 {
 				errorMsg, _ := ioutil.ReadAll(response.Body)
 				switch response.StatusCode {
 				case 403:
-					log.Errorf("Error talking to head - validate that your authorization is correct: %s", response.Status)
+					log.WithFields(logrus.Fields{"Response Status": response.StatusCode,}).
+						Error("Error talking to head - validate that your authorization is correct")
 				case 404:
-					log.Errorf("Error talking to head - validate that your satellite name is correct: %s", response.Status)
+					log.WithFields(logrus.Fields{"Response Status": response.StatusCode,}).
+						Error("Error talking to head - validate that your satellite name is correct")
 				default:
-					log.Errorf("Error talking to head: %s", response.Status)
+					log.WithFields(logrus.Fields{"Response Status": response.StatusCode,}).
+						Error("Error talking to head")
 				}
-				log.Debugf("Error message: %s", errorMsg)
-				log.Fatalf("Abort - critical error")
+				log.WithFields(logrus.Fields{"Raw Error Message": errorMsg,}).
+					Debug("Error talking to head")
+				log.Fatal("Abort - critical error")
 			}
 
 			data, _ := ioutil.ReadAll(response.Body)
-			log.Debugf("Config received:\n%s", data)
+			log.WithFields(logrus.Fields{"configuration": data}).Debug("Configuration received")
 			var targets []Target
 			err := json.Unmarshal(data, &targets)
 
-			log.Printf("Received targets: %+v", targets)
+			log.WithFields(logrus.Fields{
+				"targets": targets,
+			}).Infof("Targets received")
 
 			if err != nil {
-				log.Fatalf("Error while processing configuration: %s", err)
+				log.WithFields(logrus.Fields{"error": err,}).Fatal("Error while processing configuration")
 			}
 
 			workerChan := make(chan *Worker, len(targets))
@@ -220,16 +232,26 @@ func main() {
 					ProbeName: *probeName,
 					Id: i}
 
-				log.Infof("Launching worker (%d) for probe '%s' type %s", i, wk.Target.Name, wk.Target.ProbeType)
+				log.WithFields(logrus.Fields{
+					"worker id": i,
+					"target": wk.Target.Name,
+					"type": wk.Target.ProbeType,
+				}).Info("Launching worker")
 				go wk.HandleProbe(workerChan)
 				i++
+				// put a few seconds in between starting the worker
+				time.Sleep(5 * time.Second)
 			}
 
 			// read the channel, it will block until something is written, then a new
 			// goroutine will start
 			for wk := range workerChan {
 				// log the error
-				log.Errorf("Worker %s (%d) stopped with err: %s", wk.Target.Name, wk.Id, wk.Err)
+				log.WithFields(logrus.Fields{
+					"worker id": wk.Id,
+					"target": wk.Target.Name,
+					"error": wk.Err,
+				}).Error()
 				// reset err
 				wk.Err = nil
 				// a goroutine has ended, restart it
@@ -258,7 +280,7 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 		err := json.NewEncoder(w).Encode(satellite)
 
 		if err != nil {
-			log.Errorf("Error while encoding satellite: %s", err)
+			log.WithFields(logrus.Fields{"error": err}).Error()
 		}
 		return
 	} else {
@@ -296,12 +318,14 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 		i++
 	}
 
-	log.Debugf("Satellite '%s' is receiving these targets: %+v", satellite.Name, targets)
+	log.WithFields(logrus.Fields{
+		"satellite": satellite.Name,
+		"targets": targets,
+	}).Debugf("Satellite is receiving targets")
 
 	err := json.NewEncoder(w).Encode(targets)
 
 	if err != nil {
-		log.Errorf("Error while encoding targets: %s", err)
 		handleError(w, http.StatusServiceUnavailable, r.RequestURI, "Error while encoding targets", err)
 	}
 	return
@@ -315,7 +339,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	var responsePacket ResponsePacket
 	_ = json.NewDecoder(r.Body).Decode(&responsePacket)
 
-	log.Debugf("%+v", responsePacket)
+	log.WithFields(logrus.Fields{"responsePacket": responsePacket}).Debug()
 
 	satellite := Config.Satellites[responsePacket.SatelliteName]
 
@@ -350,10 +374,14 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	s.LastData = time.Now()
 	Config.Satellites[responsePacket.SatelliteName] = s
 
-	log.Debugf("Satellite data: %+v", s)
+	log.WithFields(logrus.Fields{"data": s}).Debug()
 }
 
 func handleError(w http.ResponseWriter, status int, source string, title string, err error) {
+	log.WithFields(logrus.Fields{
+		"error": err,
+	}).Error("Error while encoding targets")
+
 	errorResponse := ErrorResponse{Errors: []*ErrorPacket{
 		{
 			Status: strconv.Itoa(status),
@@ -378,7 +406,7 @@ func commonMiddleware(next http.Handler) http.Handler {
 }
 
 func HealthRequest(w http.ResponseWriter, r *http.Request) {
-	log.Infof("Running Health-Check")
+	log.Info("Running Health-Check")
 	msg := "Health Check not ok"
 
 	authHeader := r.Header.Get("X-Authorization")
@@ -391,7 +419,7 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 	health, err := Client.Health(context.Background())
 
 	if err != nil {
-		log.Printf("Influx Health Check failed: %s", err)
+		log.WithFields(logrus.Fields{"error": err}).Error()
 
 		if authedRequest {
 			 if health != nil {
@@ -442,15 +470,15 @@ func VersionRequest(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\" }", version)))
 
 	if err != nil {
-		log.Errorf("Error while writing to client: %s", err)
+		log.WithFields(logrus.Fields{"error": err}).Error()
 	}
 }
 
 func dumpRequest(r *http.Request) {
-	if log.GetLevel() == log.DebugLevel {
+	if log.GetLevel() == logrus.DebugLevel {
 		requestDump, err := httputil.DumpRequest(r, true)
 		if err != nil {
-			log.Errorf("Failed to dump http request '%s", err)
+			log.WithFields(logrus.Fields{"error": err}).Error()
 		} else {
 			log.Debugf("%s", string(requestDump))
 		}
@@ -466,13 +494,13 @@ func parseConfig(configPtr *string) {
 	err := viper.ReadInConfig() // Find and read the config file
 
 	if err != nil { // Handle errors reading the config file
-		log.Fatalf("Fatal error config file: %s \n", err)
+		log.WithFields(logrus.Fields{"error": err,}).Fatal("Error while processing configuration")
 	}
 
 	log.Infof("Using config file: %s\n", viper.ConfigFileUsed())
 	err = viper.Unmarshal(&Config)
 	if err != nil {
-		log.Fatalf("unable to decode into struct, %v", err)
+		log.WithFields(logrus.Fields{"error": err,}).Fatal("Error while unmarshalling")
 	}
 
 

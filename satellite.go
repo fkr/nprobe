@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"math"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/digitaljanitors/go-httpstat"
 	"github.com/go-ping/ping"
-	log "github.com/sirupsen/logrus"
 )
 
 func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
@@ -49,10 +49,10 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 		client2 := &http.Client{}
 		body, err := client2.Do(request2)
 		if err != nil {
-			log.Errorf("The HTTP request failed with error %s\n", err)
+			log.WithFields(logrus.Fields{"error": err}).Error("HTTP request failed")
 		}
 
-		log.Debugf("%+v", body)
+		log.WithFields(logrus.Fields{"body": body}).Debug()
 	}
 }
 
@@ -61,7 +61,7 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 	probes := make([]Probe, target.BatchSize)
 	pinger, err := ping.NewPinger(target.Host)
 	if err != nil {
-		log.Errorf("Pinger error: %s\n", err)
+		log.WithFields(logrus.Fields{"error": err}).Error("Pinger error")
 	}
 	if Config.Debug {
 		pinger.Debug = true
@@ -74,7 +74,7 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 
 		err = pinger.Run() // blocks until finished
 		if err != nil {
-			log.Errorf("Pinger error: %s\n", err)
+			log.WithFields(logrus.Fields{"error": err}).Error("Pinger error")
 		}
 
 		stats := pinger.Statistics() // get send/receive/rtt stats
@@ -87,9 +87,19 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
-		log.Debugf("Probe '%s' of type '%s': Min: %f, Max: %f, Median: %f", target.Name, target.ProbeType,
-					probes[i].MinRTT, probes[i].MaxRTT, probes[i].Median)
-		log.Debugf("Probe '%s' of type '%s' sleeping for %d", target.Name, target.ProbeType, target.Interval)
+		log.WithFields(logrus.Fields{
+			"target": target.Name,
+			"type": target.ProbeType,
+			"min": probes[i].MinRTT,
+			"max": probes[i].MaxRTT,
+			"median": probes[i].Median,
+			"loss": probes[i].Loss,
+		}).Debug()
+		log.WithFields(logrus.Fields{
+			"target": target.Name,
+			"type": target.ProbeType,
+			"interval": target.Interval,
+		}).Debug("Sleeping")
 		time.Sleep(time.Duration(target.Interval) * time.Second)
 	}
 
@@ -115,7 +125,7 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 		for j := 0; j < target.Probes; j++ {
 			req, err := http.NewRequest("GET", target.Host, nil)
 			if err != nil {
-				log.Errorf("Error running http probe: %s", err)
+				log.WithFields(logrus.Fields{"error": err}).Error("http probe error")
 			}
 			// Create a httpstat powered context
 			var result httpstat.Result
@@ -125,21 +135,21 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 			client := http.DefaultClient
 			res, err := client.Do(req)
 			if err != nil {
-				log.Errorf("Error running http probe: %s", err)
+				log.WithFields(logrus.Fields{"error": err}).Error("http probe error")
 				break
 			}
 			if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
-				log.Fatal(err)
+				log.WithFields(logrus.Fields{"error": err}).Fatal()
 			}
 			result.End(time.Now())
 			err = res.Body.Close()
 
 			if err != nil {
-				log.Errorf("Error closing http request: %s", err)
+				log.WithFields(logrus.Fields{"error": err}).Error("Error closing http request")
 			}
 
 			con := float64(result.Total) / float64(time.Millisecond)
-			log.Debugf("%s: %+v\n", target.Name, result)
+			log.WithFields(logrus.Fields{"target": target.Name, "result": result}).Debug()
 
 			if con < min {
 				min = con
@@ -156,7 +166,11 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
-		log.Debugf("Probe '%s' of type '%s' sleeping for %d", target.Name, target.ProbeType, target.Interval)
+		log.WithFields(logrus.Fields{
+			"target": target.Name,
+			"type": target.ProbeType,
+			"interval": target.Interval,
+		}).Debug("Sleeping")
 		time.Sleep(time.Duration(target.Interval) * time.Second)
 	}
 
