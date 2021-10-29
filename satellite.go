@@ -31,6 +31,12 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 	}()
 
 	for {
+		log.WithFields(logrus.Fields{
+			"target":   wk.Target.Name,
+			"type":     wk.Target.ProbeType,
+			"interval": wk.Target.Interval,
+		}).Debug("Sleeping")
+		time.Sleep(time.Duration(wk.Target.Interval) * time.Second)
 		var r = ResponsePacket{}
 
 		if wk.Target.ProbeType == "icmp" {
@@ -95,12 +101,14 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 			"median": probes[i].Median,
 			"loss": probes[i].Loss,
 		}).Debug()
-		log.WithFields(logrus.Fields{
-			"target": target.Name,
-			"type": target.ProbeType,
-			"interval": target.Interval,
-		}).Debug("Sleeping")
-		time.Sleep(time.Duration(target.Interval) * time.Second)
+		if i != 0 {
+			log.WithFields(logrus.Fields{
+				"target":   target.Name,
+				"type":     target.ProbeType,
+				"interval": target.Interval,
+			}).Debug("Sleeping")
+			time.Sleep(time.Duration(target.Interval) * time.Second)
+		}
 	}
 
 	response := ResponsePacket{
@@ -166,12 +174,14 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
-		log.WithFields(logrus.Fields{
-			"target": target.Name,
-			"type": target.ProbeType,
-			"interval": target.Interval,
-		}).Debug("Sleeping")
-		time.Sleep(time.Duration(target.Interval) * time.Second)
+		if i != 0 {
+			log.WithFields(logrus.Fields{
+				"target":   target.Name,
+				"type":     target.ProbeType,
+				"interval": target.Interval,
+			}).Debug("Sleeping")
+			time.Sleep(time.Duration(target.Interval) * time.Second)
+		}
 	}
 
 	response := ResponsePacket{
