@@ -18,14 +18,17 @@ import (
 
 func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 	defer func() {
+		log.WithFields(logrus.Fields{"worker": wk.Id, "target": wk.Target.Name}).Error("Running through defer")
 		if r := recover(); r != nil {
 			if err, ok := r.(error); ok {
 				wk.Err = err
 			} else {
 				wk.Err = fmt.Errorf("Panic happened with %v", r)
+				log.WithFields(logrus.Fields{"worker": wk.Id, "target": wk.Target.Name, "error": wk.Err}).Error("Paniced")
 			}
 		} else {
 			wk.Err = err
+			log.WithFields(logrus.Fields{"worker": wk.Id, "target": wk.Target.Name, "error": wk.Err}).Error("Error")
 		}
 		ch <- wk
 	}()
@@ -35,7 +38,7 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 			"target":   wk.Target.Name,
 			"type":     wk.Target.ProbeType,
 			"interval": wk.Target.Interval,
-		}).Debug("Sleeping")
+		}).Debug("Sleeping in main for loop")
 		time.Sleep(time.Duration(wk.Target.Interval) * time.Second)
 		var r = ResponsePacket{}
 
@@ -89,24 +92,24 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 			MinRTT:    float64(stats.MinRtt.Nanoseconds()) / 1000000,
 			MaxRTT:    float64(stats.MaxRtt.Nanoseconds()) / 1000000,
 			Median:    float64(stats.AvgRtt.Nanoseconds()) / 1000000,
-			Loss:	   stats.PacketLoss,
+			Loss:      stats.PacketLoss,
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
 		log.WithFields(logrus.Fields{
 			"target": target.Name,
-			"type": target.ProbeType,
-			"min": probes[i].MinRTT,
-			"max": probes[i].MaxRTT,
+			"type":   target.ProbeType,
+			"min":    probes[i].MinRTT,
+			"max":    probes[i].MaxRTT,
 			"median": probes[i].Median,
-			"loss": probes[i].Loss,
+			"loss":   probes[i].Loss,
 		}).Debug()
 		if i != 0 {
 			log.WithFields(logrus.Fields{
 				"target":   target.Name,
 				"type":     target.ProbeType,
 				"interval": target.Interval,
-			}).Debug("Sleeping")
+			}).Debug("Sleeping in probe loop")
 			time.Sleep(time.Duration(target.Interval) * time.Second)
 		}
 	}
@@ -170,7 +173,7 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 		probes[i] = Probe{
 			MinRTT:    min,
 			MaxRTT:    max,
-			Median:    (min+max)/2,
+			Median:    (min + max) / 2,
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
@@ -179,7 +182,7 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 				"target":   target.Name,
 				"type":     target.ProbeType,
 				"interval": target.Interval,
-			}).Debug("Sleeping")
+			}).Debug("Sleeping in probe loop")
 			time.Sleep(time.Duration(target.Interval) * time.Second)
 		}
 	}
