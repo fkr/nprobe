@@ -92,17 +92,17 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 			MinRTT:    float64(stats.MinRtt.Nanoseconds()) / 1000000,
 			MaxRTT:    float64(stats.MaxRtt.Nanoseconds()) / 1000000,
 			Median:    float64(stats.AvgRtt.Nanoseconds()) / 1000000,
-			Loss:	   stats.PacketLoss,
+			Loss:      stats.PacketLoss,
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
 		log.WithFields(logrus.Fields{
 			"target": target.Name,
-			"type": target.ProbeType,
-			"min": probes[i].MinRTT,
-			"max": probes[i].MaxRTT,
+			"type":   target.ProbeType,
+			"min":    probes[i].MinRTT,
+			"max":    probes[i].MaxRTT,
 			"median": probes[i].Median,
-			"loss": probes[i].Loss,
+			"loss":   probes[i].Loss,
 		}).Debug()
 		if i != 0 {
 			log.WithFields(logrus.Fields{
@@ -173,7 +173,7 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 		probes[i] = Probe{
 			MinRTT:    min,
 			MaxRTT:    max,
-			Median:    (min+max)/2,
+			Median:    (min + max) / 2,
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
