@@ -18,19 +18,28 @@ import (
 
 func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 	defer func() {
+		log.WithFields(logrus.Fields{"worker": wk.Id, "target": wk.Target.Name}).Error("Running through defer")
 		if r := recover(); r != nil {
 			if err, ok := r.(error); ok {
 				wk.Err = err
 			} else {
 				wk.Err = fmt.Errorf("Panic happened with %v", r)
+				log.WithFields(logrus.Fields{"worker": wk.Id, "target": wk.Target.Name, "error": wk.Err}).Error("Paniced")
 			}
 		} else {
 			wk.Err = err
+			log.WithFields(logrus.Fields{"worker": wk.Id, "target": wk.Target.Name, "error": wk.Err}).Error("Error")
 		}
 		ch <- wk
 	}()
 
 	for {
+		log.WithFields(logrus.Fields{
+			"target":   wk.Target.Name,
+			"type":     wk.Target.ProbeType,
+			"interval": wk.Target.Interval,
+		}).Debug("Sleeping in main for loop")
+		time.Sleep(time.Duration(wk.Target.Interval) * time.Second)
 		var r = ResponsePacket{}
 
 		if wk.Target.ProbeType == "icmp" {
@@ -95,12 +104,14 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 			"median": probes[i].Median,
 			"loss": probes[i].Loss,
 		}).Debug()
-		log.WithFields(logrus.Fields{
-			"target": target.Name,
-			"type": target.ProbeType,
-			"interval": target.Interval,
-		}).Debug("Sleeping")
-		time.Sleep(time.Duration(target.Interval) * time.Second)
+		if i != 0 {
+			log.WithFields(logrus.Fields{
+				"target":   target.Name,
+				"type":     target.ProbeType,
+				"interval": target.Interval,
+			}).Debug("Sleeping in probe loop")
+			time.Sleep(time.Duration(target.Interval) * time.Second)
+		}
 	}
 
 	response := ResponsePacket{
@@ -166,12 +177,14 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
 
-		log.WithFields(logrus.Fields{
-			"target": target.Name,
-			"type": target.ProbeType,
-			"interval": target.Interval,
-		}).Debug("Sleeping")
-		time.Sleep(time.Duration(target.Interval) * time.Second)
+		if i != 0 {
+			log.WithFields(logrus.Fields{
+				"target":   target.Name,
+				"type":     target.ProbeType,
+				"interval": target.Interval,
+			}).Debug("Sleeping in probe loop")
+			time.Sleep(time.Duration(target.Interval) * time.Second)
+		}
 	}
 
 	response := ResponsePacket{
