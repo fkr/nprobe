@@ -27,7 +27,7 @@ can be graphed.
 
 ### Head Node
 
-There is ``config/config.yaml.example`` which serves as a template. Copy this 
+There is ``config/config.json.example`` which serves as a template. Copy this 
 to ``config/config.json``, which is the default where the config is looked for.
 
 Usage can be displayed with:
@@ -86,6 +86,6 @@ Usage of ./nprobe:
 
 The underlying use of ICMP for the icmp probes requires certain socket semantics on the 
 used operating system of the satellites. Depending on your os, you might need to run this with
-elevated privileges (aka: run it as root with ```--privileged`` flag passed as well)
+elevated privileges (aka: run it as root with `--privileged` flag passed as well)
 
 
