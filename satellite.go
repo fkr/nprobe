@@ -76,6 +76,7 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 		pinger.Debug = true
 	}
 	pinger.SetPrivileged(Config.Privileged)
+	pinger.SetLogger(log)
 
 	for i := 0; i < target.BatchSize; i++ {
 
