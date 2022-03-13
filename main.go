@@ -49,12 +49,12 @@ type ErrorPacket struct {
 }
 
 type Satellite struct {
-	Active      bool     `mapstructure:"active"`
-	Name        string   `mapstructure:"name"`
-	Secret      string   `mapstructure:"secret" json:"-"`
-	Targets     []string `mapstructure:"targets"`
-	LastData	time.Time `mapstructure:"last_data"`
-	Health	    bool	`mapstructure:"health"`
+	Active   bool      `mapstructure:"active"`
+	Name     string    `mapstructure:"name"`
+	Secret   string    `mapstructure:"secret" json:"-"`
+	Targets  []string  `mapstructure:"targets"`
+	LastData time.Time `mapstructure:"last_data"`
+	Health   bool      `mapstructure:"health"`
 }
 
 type ResponsePacket struct {
@@ -65,10 +65,10 @@ type ResponsePacket struct {
 }
 
 type Probe struct {
-	MinRTT    float64     `mapstructure:"min_rtt"`
-	MaxRTT    float64     `mapstructure:"max_rtt"`
-	Median    float64     `mapstructure:"median"`
-	Loss	  float64     `mapstructure:"loss"`
+	MinRTT    float64   `mapstructure:"min_rtt"`
+	MaxRTT    float64   `mapstructure:"max_rtt"`
+	Median    float64   `mapstructure:"median"`
+	Loss      float64   `mapstructure:"loss"`
 	NumProbes int       `mapstructure:"num_probes"`
 	Timestamp time.Time `mapstructure:"timestamp"`
 }
@@ -83,11 +83,11 @@ type Target struct {
 }
 
 type Worker struct {
-	Target Target
-	HeadUrl string
+	Target    Target
+	HeadUrl   string
 	ProbeName string
-	Id  int
-	Err error
+	Id        int
+	Err       error
 }
 
 var Config Configuration
@@ -140,9 +140,9 @@ func main() {
 	}
 
 	log.WithFields(logrus.Fields{
-		"host": *probeName,
+		"host":    *probeName,
 		"version": version,
-		"mode": *mode,
+		"mode":    *mode,
 	}).Info("nprobe is starting")
 
 	if *mode == "head" {
@@ -174,7 +174,7 @@ func main() {
 
 		headUrl = headUrl + *headNode + "/"
 
-		request, _ := http.NewRequest("GET", headUrl +"satellites/"+*probeName+"/targets", nil)
+		request, _ := http.NewRequest("GET", headUrl+"satellites/"+*probeName+"/targets", nil)
 		request.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 
 		t := &http.Transport{}
@@ -190,22 +190,22 @@ func main() {
 
 		response, err := client.Do(request)
 		if err != nil {
-			log.WithFields(logrus.Fields{"error": err,}).Fatal("Error retrieving configuration from head")
+			log.WithFields(logrus.Fields{"error": err}).Fatal("Error retrieving configuration from head")
 		} else {
 			if response.StatusCode != 200 {
 				errorMsg, _ := ioutil.ReadAll(response.Body)
 				switch response.StatusCode {
 				case 403:
-					log.WithFields(logrus.Fields{"Response Status": response.StatusCode,}).
+					log.WithFields(logrus.Fields{"Response Status": response.StatusCode}).
 						Error("Error talking to head - validate that your authorization is correct")
 				case 404:
-					log.WithFields(logrus.Fields{"Response Status": response.StatusCode,}).
+					log.WithFields(logrus.Fields{"Response Status": response.StatusCode}).
 						Error("Error talking to head - validate that your satellite name is correct")
 				default:
-					log.WithFields(logrus.Fields{"Response Status": response.StatusCode,}).
+					log.WithFields(logrus.Fields{"Response Status": response.StatusCode}).
 						Error("Error talking to head")
 				}
-				log.WithFields(logrus.Fields{"Raw Error Message": errorMsg,}).
+				log.WithFields(logrus.Fields{"Raw Error Message": errorMsg}).
 					Debug("Error talking to head")
 				log.Fatal("Abort - critical error")
 			}
@@ -220,22 +220,22 @@ func main() {
 			}).Infof("Targets received")
 
 			if err != nil {
-				log.WithFields(logrus.Fields{"error": err,}).Fatal("Error while processing configuration")
+				log.WithFields(logrus.Fields{"error": err}).Fatal("Error while processing configuration")
 			}
 
 			workerChan := make(chan *Worker, len(targets))
 			i := 0
 			for _, k := range targets {
 				wk := &Worker{
-					Target: k,
-					HeadUrl: headUrl,
+					Target:    k,
+					HeadUrl:   headUrl,
 					ProbeName: *probeName,
-					Id: i}
+					Id:        i}
 
 				log.WithFields(logrus.Fields{
 					"worker id": i,
-					"target": wk.Target.Name,
-					"type": wk.Target.ProbeType,
+					"target":    wk.Target.Name,
+					"type":      wk.Target.ProbeType,
 				}).Info("Launching worker")
 				go wk.HandleProbe(workerChan)
 				i++
@@ -249,8 +249,8 @@ func main() {
 				// log the error
 				log.WithFields(logrus.Fields{
 					"worker id": wk.Id,
-					"target": wk.Target.Name,
-					"error": wk.Err,
+					"target":    wk.Target.Name,
+					"error":     wk.Err,
 				}).Error()
 				// reset err
 				wk.Err = nil
@@ -271,7 +271,7 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 
 	satellite, found := Config.Satellites[params["name"]]
 
-	if ! found {
+	if !found {
 		handleError(w, http.StatusNotFound, r.RequestURI, "Requested item not found", nil)
 		return
 	}
@@ -306,7 +306,7 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 
 	if !satellite.Active {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here",
-					errors.New("satellite marked inactive"))
+			errors.New("satellite marked inactive"))
 		return
 	}
 
@@ -320,7 +320,7 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 
 	log.WithFields(logrus.Fields{
 		"satellite": satellite.Name,
-		"targets": targets,
+		"targets":   targets,
 	}).Debugf("Satellite is receiving targets")
 
 	err := json.NewEncoder(w).Encode(targets)
@@ -360,7 +360,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	for _, probe := range responsePacket.Probes {
 		p := influxdb2.NewPointWithMeasurement("stat").
 			AddTag("unit", "milliseconds").
-			AddTag("target", responsePacket.TargetName +" ("+ responsePacket.ProbeType +")").
+			AddTag("target", responsePacket.TargetName+" ("+responsePacket.ProbeType+")").
 			AddTag("probe", responsePacket.SatelliteName).
 			AddField("median", probe.Median).
 			AddField("max", probe.MaxRTT).
@@ -422,12 +422,12 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(logrus.Fields{"error": err}).Error()
 
 		if authedRequest {
-			 if health != nil {
-				 msg = fmt.Sprintf("Influx Error: %s", *health.Message)
-			 }
+			if health != nil {
+				msg = fmt.Sprintf("Influx Error: %s", *health.Message)
+			}
 		} else {
-			 // for unauthed requests to /health we don't want to leak the actual error
-			 err = nil
+			// for unauthed requests to /health we don't want to leak the actual error
+			err = nil
 		}
 
 		handleError(w, http.StatusServiceUnavailable, "/healthz", msg, err)
@@ -449,7 +449,7 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 			}
 
 			timeout := time.Now().Add(-time.Minute * time.Duration(int64(interval)))
-			if (last.Before(timeout)) {
+			if last.Before(timeout) {
 
 				if authedRequest {
 					msg = fmt.Sprintf("Probe '%s' has not come back in time. Last message from '%s'", k.Name, k.LastData)
@@ -494,15 +494,14 @@ func parseConfig(configPtr *string) {
 	err := viper.ReadInConfig() // Find and read the config file
 
 	if err != nil { // Handle errors reading the config file
-		log.WithFields(logrus.Fields{"error": err,}).Fatal("Error while processing configuration")
+		log.WithFields(logrus.Fields{"error": err}).Fatal("Error while processing configuration")
 	}
 
 	log.Infof("Using config file: %s\n", viper.ConfigFileUsed())
 	err = viper.Unmarshal(&Config)
 	if err != nil {
-		log.WithFields(logrus.Fields{"error": err,}).Fatal("Error while unmarshalling")
+		log.WithFields(logrus.Fields{"error": err}).Fatal("Error while unmarshalling")
 	}
-
 
 	// inject name from map names
 	for name, s := range Config.Satellites {
