@@ -211,17 +211,18 @@ func main() {
 			}
 
 			data, _ := ioutil.ReadAll(response.Body)
-			log.WithFields(logrus.Fields{"configuration": data}).Debug("Configuration received")
 			var targets []Target
 			err := json.Unmarshal(data, &targets)
+
+			if err != nil {
+				log.WithFields(logrus.Fields{"error": err}).Fatal("Error while processing configuration")
+			}
 
 			log.WithFields(logrus.Fields{
 				"targets": targets,
 			}).Infof("Targets received")
 
-			if err != nil {
-				log.WithFields(logrus.Fields{"error": err}).Fatal("Error while processing configuration")
-			}
+			log.WithFields(logrus.Fields{"configuration": data}).Debug("Configuration received")
 
 			workerChan := make(chan *Worker, len(targets))
 			i := 0
