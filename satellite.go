@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/digitaljanitors/go-httpstat"
-	"github.com/go-ping/ping"
+	ping "github.com/prometheus-community/pro-bing"
 )
 
 func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
