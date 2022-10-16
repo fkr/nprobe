@@ -8,11 +8,13 @@
   "satellites": {
     "localhost-probe": {
       "secret": "SECRET-IDENTIFIER",
-      "targets": ["server1", "server2"]
+      "targets": ["server1", "server2"],
+      "active": true
     },
     "probe.example.com": {
       "secret": "A-SECOND-SECRET-IDENTIFIER",
-      "targets": ["server1", "server2", "server3"]
+      "targets": ["server1", "server2", "server3"],
+      "active:": false
     }
   },
   "targets": {
