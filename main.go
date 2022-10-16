@@ -150,8 +150,12 @@ func main() {
 		parseConfig(configFile)
 		ConfigFile = *configFile
 
-		Client = influxdb2.NewClient(Config.Database.Host, Config.Database.Token)
-		defer Client.Close()
+		if Config.Database.Host != "" {
+			Client = influxdb2.NewClient(Config.Database.Host, Config.Database.Token)
+			defer Client.Close()
+		} else {
+			log.Warn("No Database configuration")
+		}
 
 		router := mux.NewRouter()
 
@@ -354,28 +358,35 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// user blocking write client for writes to desired bucket
-	writeAPI := Client.WriteAPI(Config.Database.Org, Config.Database.Bucket)
-	// create point using fluent style
-
-	for _, probe := range responsePacket.Probes {
-		p := influxdb2.NewPointWithMeasurement("stat").
-			AddTag("unit", "milliseconds").
-			AddTag("target", responsePacket.TargetName+" ("+responsePacket.ProbeType+")").
-			AddTag("probe", responsePacket.SatelliteName).
-			AddField("median", probe.Median).
-			AddField("max", probe.MaxRTT).
-			AddField("min", probe.MinRTT).
-			AddField("loss", probe.Loss).
-			SetTime(probe.Timestamp)
-		writeAPI.WritePoint(p)
-	}
+	writeData(responsePacket)
 
 	s := Config.Satellites[responsePacket.SatelliteName]
 	s.LastData = time.Now()
 	Config.Satellites[responsePacket.SatelliteName] = s
 
 	log.WithFields(logrus.Fields{"data": s}).Debug()
+}
+
+func writeData(responsePacket ResponsePacket) {
+
+	if Config.Database.Host != "" {
+		// user blocking write client for writes to desired bucket
+		writeAPI := Client.WriteAPI(Config.Database.Org, Config.Database.Bucket)
+		// create point using fluent style
+
+		for _, probe := range responsePacket.Probes {
+			p := influxdb2.NewPointWithMeasurement("stat").
+				AddTag("unit", "milliseconds").
+				AddTag("target", responsePacket.TargetName+" ("+responsePacket.ProbeType+")").
+				AddTag("probe", responsePacket.SatelliteName).
+				AddField("median", probe.Median).
+				AddField("max", probe.MaxRTT).
+				AddField("min", probe.MinRTT).
+				AddField("loss", probe.Loss).
+				SetTime(probe.Timestamp)
+			writeAPI.WritePoint(p)
+		}
+	}
 }
 
 func handleError(w http.ResponseWriter, status int, source string, title string, err error) {
