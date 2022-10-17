@@ -40,9 +40,11 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 			"interval": wk.Target.Interval,
 		}).Debug("Sleeping in main for loop")
 		time.Sleep(time.Duration(wk.Target.Interval) * time.Second)
+		log.Debug("Time to wake up")
 		var r = ResponsePacket{}
 
 		if wk.Target.ProbeType == "icmp" {
+			log.Debug("probe type: icmp")
 			r = wk.Target.probeIcmp(wk.ProbeName)
 		}
 		if wk.Target.ProbeType == "http" {
@@ -82,10 +84,17 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 
 		pinger.Count = target.Probes
 
+		log.WithFields(logrus.Fields{
+			"batch": i,
+			"count": target.Probes,
+		}).Debug("starting next loop")
+
 		err = pinger.Run() // blocks until finished
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Error("Pinger error")
 		}
+
+		log.Debug("Pinger finished. Extracting stats...")
 
 		stats := pinger.Statistics() // get send/receive/rtt stats
 
