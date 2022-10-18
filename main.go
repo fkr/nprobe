@@ -96,8 +96,8 @@ var ConfigFile string
 var Client influxdb2.Client
 var log *logrus.Logger
 
-const version = "0.0.2"
-const apiVersion = "0.0.1"
+const version = "0.0.3"
+const apiVersion = "0.1.0"
 
 func main() {
 
