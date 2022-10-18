@@ -76,6 +76,14 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 	}
 	if Config.Debug {
 		pinger.Debug = true
+		pinger.OnRecv = func(pkt *ping.Packet) {
+			log.WithFields(logrus.Fields{
+				"bytes":    pkt.Nbytes,
+				"IP":       pkt.IPAddr,
+				"Sequence": pkt.Seq,
+				"Time":     pkt.Rtt,
+			}).Debug()
+		}
 	}
 	pinger.SetPrivileged(Config.Privileged)
 	pinger.SetLogger(log)
