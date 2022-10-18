@@ -73,6 +73,15 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 
 	for i := 0; i < target.BatchSize; i++ {
 
+		if i != 0 {
+			log.WithFields(logrus.Fields{
+				"target":   target.Name,
+				"type":     target.ProbeType,
+				"interval": target.Interval,
+			}).Debug("Sleeping in probe loop")
+			time.Sleep(time.Duration(target.Interval) * time.Second)
+		}
+
 		pinger, err := ping.NewPinger(target.Host)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Error("Pinger error")
@@ -126,14 +135,6 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 			"stdev":  probes[i].StdDev,
 			"loss":   probes[i].Loss,
 		}).Debug()
-		if i != 0 {
-			log.WithFields(logrus.Fields{
-				"target":   target.Name,
-				"type":     target.ProbeType,
-				"interval": target.Interval,
-			}).Debug("Sleeping in probe loop")
-			time.Sleep(time.Duration(target.Interval) * time.Second)
-		}
 	}
 
 	response := ResponsePacket{
