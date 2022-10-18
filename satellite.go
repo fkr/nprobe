@@ -70,25 +70,27 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 func (target *Target) probeIcmp(probeName string) ResponsePacket {
 
 	probes := make([]Probe, target.BatchSize)
-	pinger, err := ping.NewPinger(target.Host)
-	if err != nil {
-		log.WithFields(logrus.Fields{"error": err}).Error("Pinger error")
-	}
-	if Config.Debug {
-		pinger.Debug = true
-		pinger.OnRecv = func(pkt *ping.Packet) {
-			log.WithFields(logrus.Fields{
-				"bytes":    pkt.Nbytes,
-				"IP":       pkt.IPAddr,
-				"Sequence": pkt.Seq,
-				"Time":     pkt.Rtt,
-			}).Debug()
-		}
-	}
-	pinger.SetPrivileged(Config.Privileged)
-	pinger.SetLogger(log)
 
 	for i := 0; i < target.BatchSize; i++ {
+
+		pinger, err := ping.NewPinger(target.Host)
+		if err != nil {
+			log.WithFields(logrus.Fields{"error": err}).Error("Pinger error")
+		}
+		if Config.Debug {
+			pinger.Debug = true
+			pinger.OnRecv = func(pkt *ping.Packet) {
+				log.WithFields(logrus.Fields{
+					"bytes":    pkt.Nbytes,
+					"IP":       pkt.IPAddr,
+					"Sequence": pkt.Seq,
+					"Time":     pkt.Rtt,
+				}).Debug()
+			}
+		}
+		pinger.SetPrivileged(Config.Privileged)
+		pinger.SetLogger(log)
+		pinger.Timeout = time.Duration(5 * time.Second)
 
 		pinger.Count = target.Probes
 
