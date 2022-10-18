@@ -68,6 +68,7 @@ type Probe struct {
 	MinRTT    float64   `mapstructure:"min_rtt"`
 	MaxRTT    float64   `mapstructure:"max_rtt"`
 	Median    float64   `mapstructure:"median"`
+	StdDev    float64   `mapstructure:"stddev"`
 	Loss      float64   `mapstructure:"loss"`
 	NumProbes int       `mapstructure:"num_probes"`
 	Timestamp time.Time `mapstructure:"timestamp"`
@@ -379,6 +380,7 @@ func writeData(responsePacket ResponsePacket) {
 				AddTag("unit", "milliseconds").
 				AddTag("target", responsePacket.TargetName+" ("+responsePacket.ProbeType+")").
 				AddTag("probe", responsePacket.SatelliteName).
+				AddField("stddev", probe.StdDev).
 				AddField("median", probe.Median).
 				AddField("max", probe.MaxRTT).
 				AddField("min", probe.MinRTT).

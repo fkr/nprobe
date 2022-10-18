@@ -112,6 +112,7 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 			MinRTT:    float64(stats.MinRtt.Nanoseconds()) / 1000000,
 			MaxRTT:    float64(stats.MaxRtt.Nanoseconds()) / 1000000,
 			Median:    float64(stats.AvgRtt.Nanoseconds()) / 1000000,
+			StdDev:    float64(stats.StdDevRtt.Nanoseconds()) / 1000000,
 			Loss:      stats.PacketLoss,
 			NumProbes: target.Probes,
 			Timestamp: time.Now()}
@@ -122,6 +123,7 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 			"min":    probes[i].MinRTT,
 			"max":    probes[i].MaxRTT,
 			"median": probes[i].Median,
+			"stdev":  probes[i].StdDev,
 			"loss":   probes[i].Loss,
 		}).Debug()
 		if i != 0 {
