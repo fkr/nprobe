@@ -23,6 +23,8 @@ import (
 
 type Configuration struct {
 	Authorization string               `mapstructure:"authorization"`
+	ListenIP      string               `mapstructure:"listen_ip"`
+	ListenPort    string               `mapstructure:"listen_port"`
 	Debug         bool                 `mapstructure:"debug"`
 	Database      InfluxConfiguration  `mapstructure:"database"`
 	Satellites    map[string]Satellite `mapstructure:"satellites"`
@@ -158,6 +160,10 @@ func main() {
 			log.Warn("No Database configuration")
 		}
 
+		if Config.ListenPort == "" {
+			Config.ListenPort = "8000"
+		}
+
 		router := mux.NewRouter()
 
 		// make use of our middleware to set content type and such
@@ -169,7 +175,7 @@ func main() {
 		router.HandleFunc("/satellites/{name}/targets", GetTargets).Methods("GET")
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
 		router.HandleFunc("/version", VersionRequest).Methods("GET")
-		log.Fatal(http.ListenAndServe(":8000", router))
+		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+ Config.ListenPort, router))
 	} else {
 
 		headUrl := "https://"
