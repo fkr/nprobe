@@ -484,9 +484,13 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 			timeout := time.Now().Add(-time.Minute * time.Duration(int64(interval)))
 			if last.Before(timeout) {
 
-				if authedRequest {
-					msg = fmt.Sprintf("Probe '%s' has not come back in time. Last message from '%s'", k.Name, k.LastData)
-				} else {
+				msg = fmt.Sprintf("Probe '%s' has not come back in time. Last message from '%s'", k.Name, k.LastData)
+
+				log.WithFields(logrus.Fields{
+					"msg": msg,
+				}).Error("Health-Check error")
+
+				if !authedRequest {
 					msg = ""
 				}
 
