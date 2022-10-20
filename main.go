@@ -400,7 +400,8 @@ func writeData(responsePacket ResponsePacket) {
 func handleError(w http.ResponseWriter, status int, source string, title string, err error) {
 	log.WithFields(logrus.Fields{
 		"error": err,
-	}).Error("Error while encoding targets")
+		"msg":   title,
+	}).Error()
 
 	errorResponse := ErrorResponse{Errors: []*ErrorPacket{
 		{
@@ -460,7 +461,7 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 			last := k.LastData
 
 			// find interval
-			interval := math.MaxInt
+			interval := math.MaxInt64
 			for _, t := range k.Targets {
 				s := Config.Targets[t]
 				if s.Interval < interval {

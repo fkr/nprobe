@@ -1,4 +1,10 @@
 
+# Configuration
+
+Default: config file
+
+Optional: consul sd 
+
 # Database
 
 Default: https://github.com/nakabonne/tstorage
