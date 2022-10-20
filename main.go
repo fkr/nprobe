@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -98,7 +99,18 @@ var ConfigFile string
 var Client influxdb2.Client
 var log *logrus.Logger
 
-const version = "0.0.3"
+var Commit = func() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.revision" {
+				return setting.Value
+			}
+		}
+	}
+	return ""
+}()
+var version = "0.0.3" + "-" + Commit
+
 const apiVersion = "0.1.0"
 
 func main() {
