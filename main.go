@@ -187,7 +187,7 @@ func main() {
 		router.HandleFunc("/satellites/{name}/targets", GetTargets).Methods("GET")
 		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
 		router.HandleFunc("/version", VersionRequest).Methods("GET")
-		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+ Config.ListenPort, router))
+		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+Config.ListenPort, router))
 	} else {
 
 		headUrl := "https://"
