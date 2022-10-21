@@ -16,9 +16,8 @@ import (
 	ping "github.com/prometheus-community/pro-bing"
 )
 
-const ICMP_TIMEOUT = 10
-const RETRY_COUNTER = 10
-const RETRY_TIMER = 10 // seconds
+const retryCounter = 10
+const retryTimer = 10 // seconds
 
 func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 	defer func() {
@@ -55,7 +54,7 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 			r = wk.Target.probeHttp(wk.ProbeName)
 		}
 
-		go wk.Target.submitProbes(r, wk.HeadUrl+"targets/"+wk.Target.Name)
+		go wk.Target.submitProbes(r, wk.HeadUrl + "targets/" + wk.Target.Name)
 	}
 }
 
@@ -64,21 +63,21 @@ func (target *Target) submitProbes(r ResponsePacket, url string) {
 	retry := true
 	count := 0
 
-	for retry {
+	 for retry {
 		jsonValue, _ := json.Marshal(r)
 		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
 		request2.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 		request2.Header.Set("X-Nprobe-Version", version)
 		client2 := &http.Client{}
 		body, err := client2.Do(request2)
-		if err != nil {
+		if err != nil{
 			log.WithFields(logrus.Fields{"error": err}).Error("HTTP request failed.")
 			log.Debug("Sleeping for 10 seconds")
-			time.Sleep(time.Duration(RETRY_TIMER * time.Second))
+			time.Sleep(time.Duration(retryTimer * time.Second))
 			log.WithFields(logrus.Fields{"retry counter": count}).Info("Time to retry")
 			count++
 
-			if count == RETRY_COUNTER {
+			if count == retryCounter {
 				log.Error("Retry counter reached. Discarding submission.")
 				break
 			}
@@ -121,7 +120,7 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 		}
 		pinger.SetPrivileged(Config.Privileged)
 		pinger.SetLogger(log)
-		pinger.Timeout = time.Duration(ICMP_TIMEOUT * time.Second)
+		pinger.Timeout = time.Duration(5 * time.Second)
 
 		pinger.Count = target.Probes
 

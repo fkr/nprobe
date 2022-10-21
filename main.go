@@ -111,7 +111,7 @@ var Commit = func() string {
 }()
 var version = "0.0.3" + "-" + Commit
 
-const API_VERSION = "0.1.0"
+const apiVersion = "0.1.0"
 
 func main() {
 
@@ -431,7 +431,7 @@ func commonMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dumpRequest(r)
 		w.Header().Add("Content-Type", "application/vnd.api+json")
-		w.Header().Add("X-Api-Version", API_VERSION)
+		w.Header().Add("X-Api-Version", apiVersion)
 		w.Header().Add("X-Nprobe-Version", version)
 		w.Header().Add("X-Powered-By", "nprobe")
 		next.ServeHTTP(w, r)
