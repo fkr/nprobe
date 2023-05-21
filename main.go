@@ -441,6 +441,7 @@ func commonMiddleware(next http.Handler) http.Handler {
 func HealthRequest(w http.ResponseWriter, r *http.Request) {
 	log.Info("Running Health-Check")
 	msg := "Health Check not ok"
+	var err error
 
 	authHeader := r.Header.Get("X-Authorization")
 	authedRequest := false
@@ -449,22 +450,24 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 		authedRequest = true
 	}
 
-	health, err := Client.Health(context.Background())
+	if Client != nil {
+		health, err := Client.Health(context.Background())
 
-	if err != nil {
-		log.WithFields(logrus.Fields{"error": err}).Error()
+		if err != nil {
+			log.WithFields(logrus.Fields{"error": err}).Error()
 
-		if authedRequest {
-			if health != nil {
-				msg = fmt.Sprintf("Influx Error: %s", *health.Message)
+			if authedRequest {
+				if health != nil {
+					msg = fmt.Sprintf("Influx Error: %s", *health.Message)
+				}
+			} else {
+				// for unauthed requests to /health we don't want to leak the actual error
+				err = nil
 			}
-		} else {
-			// for unauthed requests to /health we don't want to leak the actual error
-			err = nil
-		}
 
-		handleError(w, http.StatusServiceUnavailable, "/healthz", msg, err)
-		return
+			handleError(w, http.StatusServiceUnavailable, "/healthz", msg, err)
+			return
+		}
 	}
 
 	// check each satellite
