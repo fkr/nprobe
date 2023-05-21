@@ -98,8 +98,7 @@ var Config Configuration
 var ConfigFile string
 var Client influxdb2.Client
 var log *logrus.Logger
-
-var Commit = func() string {
+var commit = func() string {
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, setting := range info.Settings {
 			if setting.Key == "vcs.revision" {
@@ -109,11 +108,13 @@ var Commit = func() string {
 	}
 	return ""
 }()
-var version = "0.0.3" + "-" + Commit
+var version = "0.0.3"
 
 const apiVersion = "0.1.0"
 
 func main() {
+
+	version = version + "-" + commit[0:7]
 
 	log = logrus.New()
 
