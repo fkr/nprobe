@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-chi/chi/v5"
-	"github.com/gorilla/mux"
 	"io/ioutil"
 	"math"
 	"net/http"
@@ -184,12 +183,10 @@ func main() {
 
 		router.Post("/config", ConfigReload)
 		router.Get("/healthz", HealthRequest)
-		router.Get()
-
-		router.HandleFunc("/satellites/{name}", GetSatellite).Methods("GET")
-		router.HandleFunc("/satellites/{name}/targets", GetTargets).Methods("GET")
-		router.HandleFunc("/targets/{name}", SubmitTarget).Methods("POST")
-		router.HandleFunc("/version", VersionRequest).Methods("GET")
+		router.Get("/satellites/{name}", GetSatellite)
+		router.Get("/satellites/{name}/targets", GetTargets)
+		router.Post("/targets/{name}", SubmitTarget)
+		router.Get("/version", VersionRequest)
 		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+Config.ListenPort, router))
 	} else {
 
@@ -296,9 +293,8 @@ func ConfigReload(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetSatellite(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
 
-	satellite, found := Config.Satellites[params["name"]]
+	satellite, found := Config.Satellites[chi.URLParam(r, "name")]
 
 	if !found {
 		handleError(w, http.StatusNotFound, r.RequestURI, "Requested item not found", nil)
@@ -319,9 +315,8 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetTargets(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
 
-	satellite, found := Config.Satellites[params["name"]]
+	satellite, found := Config.Satellites[chi.URLParam(r, "name")]
 
 	if !found {
 		handleError(w, http.StatusNotFound, r.RequestURI, "Requested item not found", nil)
@@ -361,9 +356,6 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 func SubmitTarget(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-
-	log.Debugf("%+v", params)
 
 	var responsePacket ResponsePacket
 	_ = json.NewDecoder(r.Body).Decode(&responsePacket)
