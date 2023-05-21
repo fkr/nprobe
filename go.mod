@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/digitaljanitors/go-httpstat v0.2.1-0.20200331213148-166c91beed46
-	github.com/gorilla/mux v1.8.0
+	github.com/go-chi/chi/v5 v5.0.8
 	github.com/influxdata/influxdb-client-go/v2 v2.12.3
 	github.com/prometheus-community/pro-bing v0.1.0
 	github.com/sirupsen/logrus v1.9.2

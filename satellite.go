@@ -54,7 +54,7 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 			r = wk.Target.probeHttp(wk.ProbeName)
 		}
 
-		go wk.Target.submitProbes(r, wk.HeadUrl + "targets/" + wk.Target.Name)
+		go wk.Target.submitProbes(r, wk.HeadUrl+"targets/"+wk.Target.Name)
 	}
 }
 
@@ -63,14 +63,14 @@ func (target *Target) submitProbes(r ResponsePacket, url string) {
 	retry := true
 	count := 0
 
-	 for retry {
+	for retry {
 		jsonValue, _ := json.Marshal(r)
 		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
 		request2.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
 		request2.Header.Set("X-Nprobe-Version", version)
 		client2 := &http.Client{}
 		body, err := client2.Do(request2)
-		if err != nil{
+		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Error("HTTP request failed.")
 			log.Debug("Sleeping for 10 seconds")
 			time.Sleep(time.Duration(retryTimer * time.Second))
