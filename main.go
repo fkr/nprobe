@@ -506,7 +506,7 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func VersionRequest(w http.ResponseWriter, r *http.Request) {
-	_, err := w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\" }", version)))
+	_, err := w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\", \"Configuration:\" \"%s\" }", version, Config.Version)))
 
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Error()
