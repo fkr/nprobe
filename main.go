@@ -24,12 +24,12 @@ import (
 
 type Configuration struct {
 	Authorization string               `mapstructure:"authorization"`
+	Database      InfluxConfiguration  `mapstructure:"database"`
+	Debug         bool                 `mapstructure:"debug"`
 	ListenIP      string               `mapstructure:"listen_ip"`
 	ListenPort    string               `mapstructure:"listen_port"`
-	Debug         bool                 `mapstructure:"debug"`
-	Database      InfluxConfiguration  `mapstructure:"database"`
-	Satellites    map[string]Satellite `mapstructure:"satellites"`
 	Privileged    bool                 `mapstructure:"privileged"`
+	Satellites    map[string]Satellite `mapstructure:"satellites"`
 	Targets       map[string]Target    `mapstructure:"targets"`
 }
 
