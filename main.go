@@ -31,6 +31,7 @@ type Configuration struct {
 	Privileged    bool                 `mapstructure:"privileged"`
 	Satellites    map[string]Satellite `mapstructure:"satellites"`
 	Targets       map[string]Target    `mapstructure:"targets"`
+	Version       int64                `mapstructure:"version"`
 }
 
 type InfluxConfiguration struct {
@@ -550,6 +551,10 @@ func parseConfig(configPtr *string) {
 		k.Name = name
 		Config.Targets[name] = k
 	}
+
+	// set Version of config file to NOW
+	now := time.Now()
+	Config.Version = now.Unix()
 
 	log.Debugf("%+v", Config)
 }
