@@ -65,9 +65,9 @@ func (target *Target) submitProbes(r ResponsePacket, url string) {
 	for retry {
 		jsonValue, _ := json.Marshal(r)
 		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
-		request2.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
-		request2.Header.Set("X-Nprobe-Version", version)
-		request2.Header.Set("X-Nprobe-Config", fmt.Sprintf("%s", Config.Version))
+		request2.Header.Set(HeaderAuthorization, os.Getenv("NPROBE_SECRET"))
+		request2.Header.Set(HeaderNprobeVersion, version)
+		request2.Header.Set(HeaderNprobeConfig, fmt.Sprintf("%s", Config.Version))
 		client2 := &http.Client{}
 		body, err := client2.Do(request2)
 		if err != nil {

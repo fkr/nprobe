@@ -112,6 +112,9 @@ var commit = func() string {
 var version = "0.0.3"
 
 const apiVersion = "0.1.0"
+const HeaderAuthorization = "X-Authorization"
+const HeaderNprobeVersion = "X-Nprobe-Version"
+const HeaderNprobeConfig = "X-Nprobe-Config"
 
 func main() {
 
@@ -200,7 +203,7 @@ func main() {
 		headUrl = headUrl + *headNode + "/"
 
 		request, _ := http.NewRequest("GET", headUrl+"satellites/"+*probeName+"/targets", nil)
-		request.Header.Set("X-Authorization", os.Getenv("NPROBE_SECRET"))
+		request.Header.Set(HeaderAuthorization, os.Getenv("NPROBE_SECRET"))
 
 		t := &http.Transport{}
 
@@ -287,8 +290,8 @@ func main() {
 	}
 }
 
-func ConfigReload(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("X-Authorization") == Config.Authorization {
+func ConfigReload(_ http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
 		log.Infof("Config Reload triggered")
 		parseConfig(&ConfigFile)
 	}
@@ -303,7 +306,7 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get("X-Authorization") == satellite.Secret {
+	if r.Header.Get(HeaderAuthorization) == satellite.Secret {
 		err := json.NewEncoder(w).Encode(satellite)
 
 		if err != nil {
@@ -325,7 +328,7 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get("X-Authorization") != satellite.Secret {
+	if r.Header.Get(HeaderAuthorization) != satellite.Secret {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
 	}
@@ -366,7 +369,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
 	satellite := Config.Satellites[responsePacket.SatelliteName]
 
-	if r.Header.Get("X-Authorization") != satellite.Secret {
+	if r.Header.Get(HeaderAuthorization) != satellite.Secret {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
 	}
@@ -442,7 +445,7 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 	msg := "Health Check not ok"
 	var err error
 
-	authHeader := r.Header.Get("X-Authorization")
+	authHeader := r.Header.Get(HeaderAuthorization)
 	authedRequest := false
 
 	if authHeader == Config.Authorization {
@@ -505,7 +508,7 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 	log.Info("Health-Check completed OK")
 }
 
-func VersionRequest(w http.ResponseWriter, r *http.Request) {
+func VersionRequest(w http.ResponseWriter, _ *http.Request) {
 	_, err := w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\", \"Configuration:\" \"%s\" }", version, Config.Version)))
 
 	if err != nil {
