@@ -84,6 +84,13 @@ func (target *Target) submitProbes(r ResponsePacket, url string) {
 		} else {
 			retry = false
 			log.WithFields(logrus.Fields{"body": body}).Debug()
+
+			// this is very ugly. Ideally we need to propagate the need to exit through all
+			// our go routines to exit gracefully
+			if body.StatusCode == 204 {
+				log.Info("Head Config newer than ours. Exiting.")
+				os.Exit(0)
+			}
 		}
 	}
 }
