@@ -8,7 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-chi/chi/v5"
-	"io/ioutil"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httputil"
@@ -218,7 +218,7 @@ func main() {
 			log.WithFields(logrus.Fields{"error": err}).Fatal("Error retrieving configuration from head")
 		} else {
 			if response.StatusCode != 200 {
-				errorMsg, _ := ioutil.ReadAll(response.Body)
+				errorMsg, _ := io.ReadAll(response.Body)
 				switch response.StatusCode {
 				case 403:
 					log.WithFields(logrus.Fields{"Response Status": response.StatusCode}).
@@ -235,7 +235,7 @@ func main() {
 				log.Fatal("Abort - critical error")
 			}
 
-			data, _ := ioutil.ReadAll(response.Body)
+			data, _ := io.ReadAll(response.Body)
 			var targets []Target
 			err := json.Unmarshal(data, &targets)
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
@@ -194,7 +193,7 @@ func (target *Target) probeHttp(probeName string) ResponsePacket {
 				log.WithFields(logrus.Fields{"error": err}).Error("http probe error")
 				break
 			}
-			if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+			if _, err := io.Copy(io.Discard, res.Body); err != nil {
 				log.WithFields(logrus.Fields{"error": err}).Fatal()
 			}
 			result.End(time.Now())
