@@ -137,7 +137,7 @@ func main() {
 	}
 
 	configFile := flag.String("config", "config/config.json", "config file")
-	debugMode := flag.Bool("debugMode", false, "enable debugMode mode")
+	debugMode := flag.Bool("debug", false, "enable debug mode")
 	headNode := flag.String("head", "", "fqdn / ip of head node")
 	insecureTls := flag.Bool("insecure-tls", false, "disable use of tls cert checking")
 	mode := flag.String("mode", "satellite", "head / satellite")
