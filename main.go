@@ -111,9 +111,10 @@ var commit = func() string {
 }()
 var version = "0.0.3"
 
-const apiVersion = "0.1.0"
+const apiVersion = "0.2.0"
 const HeaderAuthorization = "X-Authorization"
 const HeaderNprobeVersion = "X-Nprobe-Version"
+const HeaderNprobeApiVersion = "X-Nprobe-Api-Version"
 const HeaderNprobeConfig = "X-Nprobe-Config"
 
 func main() {
@@ -250,6 +251,12 @@ func main() {
 				"targets": targets,
 			}).Infof("Targets received")
 
+			if headConfigVersion, err := strconv.Atoi(response.Header.Get(HeaderNprobeConfig)); err == nil {
+				Config.Version = int64(headConfigVersion)
+			} else {
+				log.Infof("Config version is weird: %s", response.Header.Get(HeaderNprobeConfig))
+			}
+
 			log.WithFields(logrus.Fields{"configuration": data}).Debug("Configuration received")
 
 			workerChan := make(chan *Worker, len(targets))
@@ -384,8 +391,17 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	s := Config.Satellites[responsePacket.SatelliteName]
 	s.LastData = time.Now()
 	Config.Satellites[responsePacket.SatelliteName] = s
-
 	log.WithFields(logrus.Fields{"data": s}).Debug()
+
+	satelliteConfigVersion := r.Header.Get(HeaderNprobeConfig)
+
+	if sConfigVersion, err := strconv.Atoi(satelliteConfigVersion); err == nil {
+		if int64(sConfigVersion) < Config.Version {
+			w.WriteHeader(204)
+		}
+	} else {
+		log.Infof("Submitted Config version is weird: %s", satelliteConfigVersion)
+	}
 }
 
 func writeData(responsePacket ResponsePacket) {
@@ -433,8 +449,9 @@ func commonMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dumpRequest(r)
 		w.Header().Add("Content-Type", "application/vnd.api+json")
-		w.Header().Add("X-Api-Version", apiVersion)
-		w.Header().Add("X-Nprobe-Version", version)
+		w.Header().Add(HeaderNprobeApiVersion, apiVersion)
+		w.Header().Add(HeaderNprobeVersion, version)
+		w.Header().Add(HeaderNprobeConfig, fmt.Sprintf("%d", Config.Version))
 		w.Header().Add("X-Powered-By", "nprobe")
 		next.ServeHTTP(w, r)
 	})
