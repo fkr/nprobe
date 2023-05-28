@@ -392,6 +392,10 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
 	satellite := Config.Satellites[responsePacket.SatelliteName]
 
+	// this should actually be the first item - BEFORE we parse the json that is sent to us
+	// however, to do that we need to be able to retrieve the name of the submitting satellite to the
+	// URI and don't have it as part of the payload.
+	// Partially plays into #33. -https://g.hazardous.org/nprobe/nprobe/issues/33
 	if r.Header.Get(HeaderAuthorization) != satellite.Secret {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
