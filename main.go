@@ -187,6 +187,7 @@ func main() {
 		// make use of our middleware to set content type and such
 		router.Use(commonMiddleware)
 
+		router.Get("/config", ConfigGet)
 		router.Post("/config", ConfigReload)
 		router.Get("/healthz", HealthRequest)
 		router.Get("/satellites/{name}", GetSatellite)
@@ -301,6 +302,21 @@ func ConfigReload(_ http.ResponseWriter, r *http.Request) {
 	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
 		log.Infof("Config Reload triggered")
 		parseConfig(&ConfigFile)
+	}
+}
+
+func ConfigGet(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
+		log.Infof("Config Get requested")
+		err := json.NewEncoder(w).Encode(Config)
+
+		if err != nil {
+			log.WithFields(logrus.Fields{"error": err}).Error()
+		}
+		return
+	} else {
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+		return
 	}
 }
 
