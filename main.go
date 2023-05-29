@@ -189,6 +189,7 @@ func main() {
 
 		router.Get("/config", ConfigGet)
 		router.Post("/config", ConfigReload)
+		router.Put("/config", ConfigUpload)
 		router.Get("/healthz", HealthRequest)
 		router.Get("/satellites/{name}", GetSatellite)
 		router.Get("/satellites/{name}/targets", GetTargets)
@@ -313,6 +314,41 @@ func ConfigGet(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Error()
 		}
+		return
+	} else {
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+		return
+	}
+}
+
+func ConfigUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
+		log.Infof("Config Upload started")
+
+		viper.SetConfigType("json")
+		err := viper.ReadConfig(r.Body)
+
+		if err != nil {
+			if Config.Debug {
+				log.Debugf("%s", r.Body)
+			}
+			handleError(w, http.StatusServiceUnavailable, r.RequestURI, "Error while encoding targets", err)
+		}
+
+		var uploadedConfig Configuration
+		err = viper.Unmarshal(&uploadedConfig)
+		if err != nil {
+			log.WithFields(logrus.Fields{"error": err}).Fatal("Error while unmarshalling")
+		}
+
+		Config = uploadedConfig
+
+		// set Version of config file to NOW
+		now := time.Now()
+		Config.Version = now.Unix()
+
+		log.Infof("New config(version %d) stored", Config.Version)
+
 		return
 	} else {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
