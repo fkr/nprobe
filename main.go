@@ -119,8 +119,9 @@ const HeaderNprobeConfig = "X-Nprobe-Config"
 
 func main() {
 
-	version = version + "-" + commit[0:7]
-
+	if len(commit) > 0 {
+		version = version + "-" + commit[0:7]
+	}
 	log = logrus.New()
 
 	log.SetLevel(logrus.InfoLevel)
