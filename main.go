@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/influxdata/influxdb-client-go/v2"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 type Configuration struct {
@@ -117,9 +119,7 @@ const HeaderNprobeConfig = "X-Nprobe-Config"
 
 func main() {
 
-	if len(commit) > 0 {
-		version = version + "-" + commit[0:7]
-	}
+	version = version + "-" + commit[0:7]
 
 	log = logrus.New()
 
