@@ -99,6 +99,18 @@ var Config Configuration
 var ConfigFile string
 var Client influxdb2.Client
 var log *logrus.Logger
+var buildtime= ""
+var built = func() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.time" {
+				return setting.Value
+			}
+		}
+	}
+	return buildtime
+}()
+var commitS = ""
 var commit = func() string {
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, setting := range info.Settings {
@@ -107,7 +119,7 @@ var commit = func() string {
 			}
 		}
 	}
-	return ""
+	return commitS
 }()
 var version = "0.0.3"
 
@@ -164,6 +176,7 @@ func main() {
 	log.WithFields(logrus.Fields{
 		"host":    *probeName,
 		"version": version,
+		"built":   built,
 		"mode":    *mode,
 	}).Info("nprobe is starting")
 

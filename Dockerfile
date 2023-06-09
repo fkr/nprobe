@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM golang:1.18-alpine
+ARG GIT_COMMIT=""
+ARG BUILD_TIME=""
 
 MAINTAINER maintainers@nprobe.net
 
@@ -16,7 +18,7 @@ RUN go mod download
 COPY *.go ./
 
 # compile application
-RUN go build -o /nprobe
+RUN go build -ldflags "-X main.commitS=${GIT_COMMIT} -X main.buildtime=${BUILD_TIME}" -o /nprobe
  
 # tells Docker that the container listens on specified network ports at runtime
 EXPOSE 8000
