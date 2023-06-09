@@ -99,7 +99,7 @@ var Config Configuration
 var ConfigFile string
 var Client influxdb2.Client
 var log *logrus.Logger
-var buildtime= ""
+var buildtime = ""
 var built = func() string {
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, setting := range info.Settings {
@@ -273,7 +273,7 @@ func main() {
 				log.Infof("Config version is weird: %s", response.Header.Get(HeaderNprobeConfig))
 			}
 
-			log.WithFields(logrus.Fields{"configuration": data}).Debug("Configuration received")
+			log.Debug("Configuration received")
 
 			workerChan := make(chan *Worker, len(targets))
 			i := 0
