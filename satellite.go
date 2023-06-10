@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"math"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/digitaljanitors/go-httpstat"
 	ping "github.com/prometheus-community/pro-bing"
+	"github.com/sirupsen/logrus"
 )
 
 const retryCounter = 10

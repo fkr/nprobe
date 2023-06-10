@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"io"
 	"math"
 	"net/http"
@@ -18,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/influxdata/influxdb-client-go/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
