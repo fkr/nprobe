@@ -15,6 +15,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/influxdata/influxdb-client-go/v2"
@@ -95,6 +96,7 @@ type Worker struct {
 	Err       error
 }
 
+var cMutex sync.Mutex
 var Config Configuration
 var ConfigFile string
 var Client influxdb2.Client
@@ -323,7 +325,9 @@ func ConfigReload(_ http.ResponseWriter, r *http.Request) {
 func ConfigGet(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
 		log.Infof("Config Get requested")
+		cMutex.Lock()
 		err := json.NewEncoder(w).Encode(Config)
+		cMutex.Unlock()
 
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Error()
@@ -355,7 +359,9 @@ func ConfigUpload(w http.ResponseWriter, r *http.Request) {
 			log.WithFields(logrus.Fields{"error": err}).Fatal("Error while unmarshalling")
 		}
 
+		cMutex.Lock()
 		Config = uploadedConfig
+		cMutex.Unlock()
 
 		// set Version of config file to NOW
 		now := time.Now()
@@ -372,7 +378,9 @@ func ConfigUpload(w http.ResponseWriter, r *http.Request) {
 
 func GetSatellite(w http.ResponseWriter, r *http.Request) {
 
+	cMutex.Lock()
 	satellite, found := Config.Satellites[chi.URLParam(r, "name")]
+	cMutex.Unlock()
 
 	if !found {
 		handleError(w, http.StatusNotFound, r.RequestURI, "Requested item not found", nil)
@@ -394,7 +402,9 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 
 func GetTargets(w http.ResponseWriter, r *http.Request) {
 
+	cMutex.Lock()
 	satellite, found := Config.Satellites[chi.URLParam(r, "name")]
+	cMutex.Unlock()
 
 	if !found {
 		handleError(w, http.StatusNotFound, r.RequestURI, "Requested item not found", nil)
@@ -440,7 +450,9 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
 	log.WithFields(logrus.Fields{"responsePacket": responsePacket}).Debug()
 
+	cMutex.Lock()
 	satellite := Config.Satellites[responsePacket.SatelliteName]
+	cMutex.Unlock()
 
 	// this should actually be the first item - BEFORE we parse the json that is sent to us
 	// however, to do that we need to be able to retrieve the name of the submitting satellite to the
@@ -458,9 +470,11 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
 	writeData(responsePacket)
 
+	cMutex.Lock()
 	s := Config.Satellites[responsePacket.SatelliteName]
 	s.LastData = time.Now()
 	Config.Satellites[responsePacket.SatelliteName] = s
+	cMutex.Unlock()
 	log.WithFields(logrus.Fields{"data": s}).Debug()
 
 	satelliteConfigVersion := r.Header.Get(HeaderNprobeConfig)
