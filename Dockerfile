@@ -19,9 +19,9 @@ COPY *.go ./
 
 # compile application
 RUN go build -ldflags "-X main.commitS=${GIT_COMMIT} -X main.buildtime=${BUILD_TIME}" -o /nprobe
- 
-# tells Docker that the container listens on specified network ports at runtime
-EXPOSE 8000
 
-# command to be used to execute when the image is used to start a container
+# second stage for running
+FROM prom/busybox:glibc
+COPY --from=0 /nprobe /usr/local/bin/nprobe
+EXPOSE 8000
 ENTRYPOINT [ "/nprobe" ]
