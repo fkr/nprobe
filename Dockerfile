@@ -24,4 +24,4 @@ RUN go build -ldflags "-X main.commitS=${GIT_COMMIT} -X main.buildtime=${BUILD_T
 FROM prom/busybox:glibc
 COPY --from=0 /nprobe /usr/local/bin/nprobe
 EXPOSE 8000
-ENTRYPOINT [ "/nprobe" ]
+ENTRYPOINT [ "/usr/local/bin/nprobe" ]
