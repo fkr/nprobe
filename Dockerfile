@@ -21,7 +21,7 @@ COPY *.go ./
 RUN go build -ldflags "-X main.commitS=${GIT_COMMIT} -X main.buildtime=${BUILD_TIME}" -o /nprobe
 
 # second stage for running
-FROM prom/busybox:glibc
+FROM alpine:3.18.2
 COPY --from=0 /nprobe /usr/local/bin/nprobe
 EXPOSE 8000
 ENTRYPOINT [ "/usr/local/bin/nprobe" ]
