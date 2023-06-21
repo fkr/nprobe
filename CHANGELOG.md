@@ -2,6 +2,8 @@
 
 ## 0.4.0 (tbd)
 
+- Proper mutexes around datastructures in head node
+- Dockerfile switch to multi-stage. Means _much_ smaller runtime images due to them being based on alpine
 - Configuration can be updated at runtime by submitting a configuration through PUT to /config - #27
 - Allow to retrieve config via GET to /config
 - Clients detects if head node has a new version and terminates itself
