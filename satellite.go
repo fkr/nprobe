@@ -130,6 +130,10 @@ func (target *Target) probeIcmp(probeName string) ResponsePacket {
 		pinger.Timeout = time.Duration(5 * time.Second)
 
 		pinger.Count = target.Probes
+		err = pinger.Resolve()
+		if err != nil {
+			log.Fatalf("Failed to resolve: %s", err.Error())
+		}
 
 		log.WithFields(logrus.Fields{
 			"batch": i,
