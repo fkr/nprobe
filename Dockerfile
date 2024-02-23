@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.18-alpine
+FROM golang:1.22-alpine
 ARG GIT_COMMIT=""
 ARG BUILD_TIME=""
 
