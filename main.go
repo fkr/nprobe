@@ -656,6 +656,19 @@ func parseConfig(configPtr *string) {
 		Config.Targets[name] = k
 	}
 
+	// validate targets configured
+	for key := range Config.Satellites {
+		targets := Config.Satellites[key].Targets
+
+		for _, key2 := range targets {
+			target, ok := Config.Targets[key2]
+			if !ok {
+				log.WithFields(
+					logrus.Fields{"target": target}).Fatal("Target referenced is not defined. Configuration invalid.")
+			}
+		}
+	}
+
 	// set Version of config file to NOW
 	now := time.Now()
 	Config.Version = now.Unix()
