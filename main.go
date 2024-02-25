@@ -363,6 +363,9 @@ func ConfigUpload(w http.ResponseWriter, r *http.Request) {
 		// set Version of config file to NOW
 		now := time.Now()
 		Config.Version = now.Unix()
+		viper.Set("Version", Config.Version)
+
+		viper.WriteConfigAs(ConfigFile)
 
 		log.Infof("New config(version %d) stored", Config.Version)
 
