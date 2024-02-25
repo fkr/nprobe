@@ -347,9 +347,6 @@ func ConfigUpload(w http.ResponseWriter, r *http.Request) {
 		err := viper.ReadConfig(r.Body)
 
 		if err != nil {
-			if Config.Debug {
-				log.Debugf("%s", r.Body)
-			}
 			handleError(w, http.StatusServiceUnavailable, r.RequestURI, "Error while encoding targets", err)
 		}
 
