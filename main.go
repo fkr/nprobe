@@ -669,6 +669,10 @@ func parseConfig(configPtr *string) {
 		}
 	}
 
+	if Config.Authorization == "" {
+		log.Warn("Running without authorization")
+	}
+
 	// set Version of config file to NOW
 	now := time.Now()
 	Config.Version = now.Unix()
