@@ -252,7 +252,7 @@ func main() {
 					log.WithFields(logrus.Fields{"Response Status": response.StatusCode}).
 						Error("Error talking to head")
 				}
-				log.WithFields(logrus.Fields{"Raw Error Message": errorMsg}).
+				log.WithFields(logrus.Fields{"Raw Error Message": string(errorMsg)}).
 					Debug("Error talking to head")
 				log.Fatal("Abort - critical error")
 			}
