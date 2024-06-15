@@ -422,6 +422,12 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(satellite.Targets) == 0 {
+		msg := "No targets for satellite configured"
+		handleError(w, http.StatusServiceUnavailable, r.RequestURI, msg, errors.New(msg))
+		return
+	}
+
 	var targets = make([]Target, len(satellite.Targets))
 	var i = 0
 
