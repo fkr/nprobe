@@ -370,9 +370,12 @@ func ConfigUpload(w http.ResponseWriter, r *http.Request) {
 		Config.Version = now.Unix()
 		viper.Set("Version", Config.Version)
 
-		viper.WriteConfigAs(ConfigFile)
-
-		log.Infof("New config(version %d) stored", Config.Version)
+		err = viper.WriteConfigAs(ConfigFile)
+		if err != nil {
+			log.WithFields(logrus.Fields{"error": err}).Errorf("Error while writing config file")
+		} else {
+			log.Infof("New config(version %d) stored", Config.Version)
+		}
 
 		return
 	} else {
