@@ -131,6 +131,11 @@ const HeaderNprobeVersion = "X-Nprobe-Version"
 const HeaderNprobeApiVersion = "X-Nprobe-Api-Version"
 const HeaderNprobeConfig = "X-Nprobe-Config"
 
+const DefaultProbeType = "icmp"
+const DefaultBatchSize = 5
+const DefaultProbes = 5
+const DefaultInterval = 30
+
 func main() {
 
 	if len(commit) > 0 {
@@ -652,13 +657,26 @@ func parseConfig(configPtr *string) {
 		log.WithFields(logrus.Fields{"error": err}).Fatal("Error while unmarshalling")
 	}
 
-	// inject name from map names
+	// inject name from map names, apply defaults
 	for name, s := range Config.Satellites {
 		s.Name = name
 		Config.Satellites[name] = s
 	}
 	for name, k := range Config.Targets {
 		k.Name = name
+		if k.ProbeType == "" {
+			k.ProbeType = DefaultProbeType
+		}
+		if k.BatchSize == 0 {
+			k.BatchSize = DefaultBatchSize
+		}
+		if k.Interval == 0 {
+			k.Interval = DefaultInterval
+		}
+		if k.Probes == 0 {
+			k.Probes = DefaultProbes
+		}
+
 		Config.Targets[name] = k
 	}
 
