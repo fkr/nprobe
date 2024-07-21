@@ -215,7 +215,7 @@ func main() {
 		router.Get("/healthz", HealthRequest)
 		router.Get("/satellites/{name}", GetSatellite)
 		router.Get("/satellites/{name}/targets", GetTargets)
-		router.Post("/targets/{name}/metrics", SubmitTarget)
+		router.Put("/satellites/{name}/{target}/metrics", SubmitTarget)
 		router.Get("/version", VersionRequest)
 		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+Config.ListenPort, router))
 	} else {
@@ -459,23 +459,28 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 
 func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
-	var responsePacket ResponsePacket
-	_ = json.NewDecoder(r.Body).Decode(&responsePacket)
-
-	log.WithFields(logrus.Fields{"responsePacket": responsePacket}).Debug()
-
 	cMutex.Lock()
-	satellite := Config.Satellites[responsePacket.SatelliteName]
+	satelliteName := chi.URLParam(r, "name")
+	satellite, found := Config.Satellites[satelliteName]
+	//target := chi.URLParam(r, "target")
 	cMutex.Unlock()
 
-	// this should actually be the first item - BEFORE we parse the json that is sent to us
-	// however, to do that we need to be able to retrieve the name of the submitting satellite to the
-	// URI and don't have it as part of the payload.
-	// Partially plays into #33. -https://g.hazardous.org/nprobe/nprobe/issues/33
+	if !found {
+		log.Infof("Satellite name is not found: %s", satelliteName)
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+		return
+	}
+
 	if r.Header.Get(HeaderAuthorization) != satellite.Secret {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
 	}
+
+	// we've authorized the request, now we parse the json
+	var responsePacket ResponsePacket
+	_ = json.NewDecoder(r.Body).Decode(&responsePacket)
+
+	log.WithFields(logrus.Fields{"responsePacket": responsePacket}).Debug()
 
 	if !satellite.Active {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here - satellite is marked inactive", nil)

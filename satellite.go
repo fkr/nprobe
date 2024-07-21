@@ -54,7 +54,8 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 			r = wk.Target.probeHttp(wk.ProbeName)
 		}
 
-		go wk.Target.submitProbes(r, wk.HeadUrl+"targets/"+wk.Target.Name+"/metrics")
+		go wk.Target.submitProbes(r, wk.HeadUrl+"satellites/"+wk.ProbeName+"/"+
+					wk.Target.Name+"/metrics")
 	}
 }
 
