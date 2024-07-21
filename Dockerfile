@@ -3,7 +3,7 @@ FROM golang:1.22-alpine
 ARG GIT_COMMIT=""
 ARG BUILD_TIME=""
 
-MAINTAINER maintainers@nprobe.net
+LABEL maintainer=maintainers@nprobe.net
 
 # create a working directory inside the image
 WORKDIR /app
