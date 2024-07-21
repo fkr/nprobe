@@ -26,7 +26,7 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 			if err, ok := r.(error); ok {
 				wk.Err = err
 			} else {
-				wk.Err = fmt.Errorf("Panic happened with %v", r)
+				wk.Err = fmt.Errorf("panic happened with %v", r)
 				log.WithFields(logrus.Fields{"worker": wk.Id, "target": wk.Target.Name, "error": wk.Err}).Error("Paniced")
 			}
 		} else {

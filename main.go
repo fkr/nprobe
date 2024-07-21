@@ -432,7 +432,7 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(satellite.Targets) == 0 {
-		msg := "No targets for satellite configured"
+		msg := "no targets for satellite configured"
 		handleError(w, http.StatusServiceUnavailable, r.RequestURI, msg, errors.New(msg))
 		return
 	}
@@ -455,7 +455,6 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handleError(w, http.StatusServiceUnavailable, r.RequestURI, "Error while encoding targets", err)
 	}
-	return
 }
 
 func SubmitTarget(w http.ResponseWriter, r *http.Request) {
