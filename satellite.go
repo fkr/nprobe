@@ -63,14 +63,22 @@ func (target *Target) submitProbes(r ResponsePacket, url string) {
 	retry := true
 	count := 0
 
+	payloadHash, err := hashstructure.Hash(r, hashstructure.FormatV2, nil)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Error("Failed to calculate checksum. Setting to null.")
+		payloadHash = 0
+	}
+
+	jsonValue, _ := json.Marshal(r)
+	request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
+	request2.Header.Set(HeaderAuthorization, os.Getenv("NPROBE_SECRET"))
+	request2.Header.Set(HeaderNprobeVersion, version)
+	request2.Header.Set(HeaderNprobeConfig, fmt.Sprintf("%d", Config.Version))
+	request2.Header.Set(HeaderNprobePayloadHash, fmt.Sprintf("%d", payloadHash))
+	client2 := &http.Client{}
+
 	for retry {
-		jsonValue, _ := json.Marshal(r)
-		request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
-		request2.Header.Set(HeaderAuthorization, os.Getenv("NPROBE_SECRET"))
-		request2.Header.Set(HeaderNprobeVersion, version)
-		request2.Header.Set(HeaderNprobeConfig, fmt.Sprintf("%d", Config.Version))
-		client2 := &http.Client{}
-		body, err := client2.Do(request2)
+	body, err := client2.Do(request2)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Error("HTTP request failed.")
 			log.Debug("Sleeping for 10 seconds")
