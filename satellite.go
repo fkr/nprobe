@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/digitaljanitors/go-httpstat"
 	ping "github.com/prometheus-community/pro-bing"
 	"github.com/sirupsen/logrus"
@@ -53,7 +54,7 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 			r = wk.Target.probeHttp(wk.ProbeName)
 		}
 
-		go wk.Target.submitProbes(r, wk.HeadUrl+"targets/"+wk.Target.Name)
+		go wk.Target.submitProbes(r, wk.HeadUrl+"targets/"+wk.Target.Name+"/metrics")
 	}
 }
 

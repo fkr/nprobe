@@ -125,11 +125,12 @@ var commit = func() string {
 }()
 var version = "0.0.3"
 
-const apiVersion = "0.2.0"
+const apiVersion = "0.3.0"
 const HeaderAuthorization = "X-Authorization"
 const HeaderNprobeVersion = "X-Nprobe-Version"
 const HeaderNprobeApiVersion = "X-Nprobe-Api-Version"
 const HeaderNprobeConfig = "X-Nprobe-Config"
+const HeaderNprobePayloadHash = "X-Nprobe-Hash"
 
 const DefaultProbeType = "icmp"
 const DefaultBatchSize = 5
@@ -214,7 +215,7 @@ func main() {
 		router.Get("/healthz", HealthRequest)
 		router.Get("/satellites/{name}", GetSatellite)
 		router.Get("/satellites/{name}/targets", GetTargets)
-		router.Post("/targets/{name}", SubmitTarget)
+		router.Post("/targets/{name}/metrics", SubmitTarget)
 		router.Get("/version", VersionRequest)
 		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+Config.ListenPort, router))
 	} else {
