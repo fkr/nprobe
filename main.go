@@ -379,7 +379,7 @@ func ConfigUpload(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Errorf("Error while writing config file")
 	} else {
-		log.Infof("New config(version %d) stored", Config.Version)
+		log.Infof("New config (version %d) stored", Config.Version)
 	}
 }
 
@@ -387,13 +387,15 @@ func WriteConfig() error {
 	now := time.Now()
 	Config.Version = now.Unix()
 	viper.Set("Version", Config.Version)
+	viper.Set("satellites", Config.Satellites)
+	viper.Set("targets", Config.Targets)
 
 	err := viper.WriteConfigAs(ConfigFile)
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Errorf("Error while writing config file")
 		return err
 	} else {
-		log.Infof("New config(version %d) stored", Config.Version)
+		log.Infof("New config (version %d) stored", Config.Version)
 	}
 
 	return nil
@@ -438,15 +440,22 @@ func CreateSatellite(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var satelliteStruct Satellite
-		_ = json.NewDecoder(r.Body).Decode(&satelliteStruct)
+		err := json.NewDecoder(r.Body).Decode(&satelliteStruct)
+
+		if err != nil {
+			log.WithFields(logrus.Fields{"error": err}).Error()
+			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure parsing request. Satellite not added.", nil)
+			return
+		}
+
 		log.WithFields(logrus.Fields{"satelliteStruct": satelliteStruct}).Debug()
 		satelliteStruct.Name = satelliteName
 
 		Config.Satellites[satelliteName] = satelliteStruct
+		log.WithFields(logrus.Fields{"Config after appending new satellite": Config}).Debug()
 
 		cMutex.Lock()
-		err := WriteConfig()
-
+		err = WriteConfig()
 		if err != nil {
 			delete(Config.Satellites, satelliteName)
 			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not added.", nil)
