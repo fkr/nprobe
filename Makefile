@@ -1,7 +1,7 @@
 GOBIN=/usr/local/go/bin/go
 
 default:
-	@echo "Targets: clean, run-client, run-server"
+	@echo "Targets: clean, build, run-client, run-server"
 
 clean:
 	rm -rf nprobe
