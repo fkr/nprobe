@@ -71,7 +71,7 @@ func (target *Target) submitProbes(r ResponsePacket, url string) {
 	}
 
 	jsonValue, _ := json.Marshal(r)
-	request2, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
+	request2, _ := http.NewRequest("PUT", url, bytes.NewBuffer(jsonValue))
 	request2.Header.Set(HeaderAuthorization, os.Getenv("NPROBE_SECRET"))
 	request2.Header.Set(HeaderNprobeVersion, version)
 	request2.Header.Set(HeaderNprobeConfig, fmt.Sprintf("%d", Config.Version))

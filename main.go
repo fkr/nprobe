@@ -18,7 +18,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/influxdata/influxdb-client-go/v2"
+	"github.com/go-chi/chi/v5/middleware"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -206,17 +207,29 @@ func main() {
 
 		router := chi.NewRouter()
 
+		router.Use(middleware.Logger)
 		// make use of our middleware to set content type and such
 		router.Use(commonMiddleware)
 
-		router.Get("/config", ConfigGet)
-		router.Post("/config", ConfigReload)
-		router.Put("/config", ConfigUpload)
-		router.Get("/healthz", HealthRequest)
-		router.Get("/satellites/{name}", GetSatellite)
-		router.Get("/satellites/{name}/targets", GetTargets)
-		router.Put("/satellites/{name}/{target}/metrics", SubmitTarget)
-		router.Get("/version", VersionRequest)
+		router.Group(func(router chi.Router) {
+			router.Get("/healthz", HealthRequest)
+			router.Get("/satellites/{name}", GetSatellite)
+			router.Put("/satellites/{name}", CreateSatellite)
+			//router.Post("/satellites/{name}", UpdateSatellite)
+			router.Delete("/satellite/{name}", DeleteSatellite)
+			router.Get("/satellites/{name}/targets", GetTargets)
+			router.Put("/satellites/{name}/{target}/metrics", SubmitTarget)
+			router.Get("/version", VersionRequest)
+		})
+
+		// Private Routes
+		// Require Authentication
+		router.Group(func(router chi.Router) {
+			router.Use(authMiddleware)
+			router.Get("/config", ConfigGet)
+			router.Post("/config", ConfigReload)
+			router.Put("/config", ConfigUpload)
+		})
 		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+Config.ListenPort, router))
 	} else {
 
@@ -322,67 +335,68 @@ func main() {
 }
 
 func ConfigReload(_ http.ResponseWriter, r *http.Request) {
-	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
-		log.Infof("Config Reload triggered")
-		parseConfig(&ConfigFile)
-	}
+	log.Infof("Config Reload triggered")
+	parseConfig(&ConfigFile)
 }
 
 func ConfigGet(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
-		log.Infof("Config Get requested")
-		cMutex.Lock()
-		err := json.NewEncoder(w).Encode(Config)
-		cMutex.Unlock()
+	log.Infof("Config Get requested")
+	cMutex.Lock()
+	err := json.NewEncoder(w).Encode(Config)
+	cMutex.Unlock()
 
-		if err != nil {
-			log.WithFields(logrus.Fields{"error": err}).Error()
-		}
-		return
-	} else {
-		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
-		return
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Error()
 	}
 }
 
 func ConfigUpload(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
-		log.Infof("Config Upload started")
+	log.Infof("Config Upload started")
 
-		viper.SetConfigType("json")
-		err := viper.ReadConfig(r.Body)
+	viper.SetConfigType("json")
+	err := viper.ReadConfig(r.Body)
 
-		if err != nil {
-			handleError(w, http.StatusServiceUnavailable, r.RequestURI, "Error while encoding targets", err)
-		}
-
-		var uploadedConfig Configuration
-		err = viper.Unmarshal(&uploadedConfig)
-		if err != nil {
-			log.WithFields(logrus.Fields{"error": err}).Fatal("Error while unmarshalling")
-		}
-
-		cMutex.Lock()
-		Config = uploadedConfig
-		cMutex.Unlock()
-
-		// set Version of config file to NOW
-		now := time.Now()
-		Config.Version = now.Unix()
-		viper.Set("Version", Config.Version)
-
-		err = viper.WriteConfigAs(ConfigFile)
-		if err != nil {
-			log.WithFields(logrus.Fields{"error": err}).Errorf("Error while writing config file")
-		} else {
-			log.Infof("New config(version %d) stored", Config.Version)
-		}
-
-		return
-	} else {
-		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
-		return
+	if err != nil {
+		handleError(w, http.StatusServiceUnavailable, r.RequestURI, "Error while encoding targets", err)
 	}
+
+	var uploadedConfig Configuration
+	err = viper.Unmarshal(&uploadedConfig)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Fatal("Error while unmarshalling")
+	}
+
+	cMutex.Lock()
+	Config = uploadedConfig
+
+	// set Version of config file to NOW
+	now := time.Now()
+	Config.Version = now.Unix()
+	viper.Set("Version", Config.Version)
+
+	err = viper.WriteConfigAs(ConfigFile)
+	cMutex.Unlock()
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("Error while writing config file")
+	} else {
+		log.Infof("New config(version %d) stored", Config.Version)
+	}
+}
+
+func WriteConfig() error {
+	now := time.Now()
+	Config.Version = now.Unix()
+	viper.Set("Version", Config.Version)
+
+	err := viper.WriteConfigAs(ConfigFile)
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Errorf("Error while writing config file")
+		return err
+	} else {
+		log.Infof("New config(version %d) stored", Config.Version)
+	}
+
+	return nil
 }
 
 func GetSatellite(w http.ResponseWriter, r *http.Request) {
@@ -407,6 +421,76 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
 	}
+}
+
+func CreateSatellite(w http.ResponseWriter, r *http.Request) {
+
+	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
+
+		satelliteName := chi.URLParam(r, "name")
+		cMutex.Lock()
+		_, found := Config.Satellites[chi.URLParam(r, "name")]
+		cMutex.Unlock()
+
+		if found {
+			handleError(w, http.StatusBadRequest, r.RequestURI, "Satellite already exists", nil)
+			return
+		}
+
+		var satelliteStruct Satellite
+		_ = json.NewDecoder(r.Body).Decode(&satelliteStruct)
+		log.WithFields(logrus.Fields{"satelliteStruct": satelliteStruct}).Debug()
+		satelliteStruct.Name = satelliteName
+
+		Config.Satellites[satelliteName] = satelliteStruct
+
+		cMutex.Lock()
+		err := WriteConfig()
+
+		if err != nil {
+			delete(Config.Satellites, satelliteName)
+			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not added.", nil)
+			return
+		}
+		cMutex.Unlock()
+
+	} else {
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+		return
+	}
+
+}
+
+func DeleteSatellite(w http.ResponseWriter, r *http.Request) {
+
+	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
+
+		satelliteName := chi.URLParam(r, "name")
+		cMutex.Lock()
+		satelliteStruct, found := Config.Satellites[chi.URLParam(r, "name")]
+		cMutex.Unlock()
+
+		if !found {
+			handleError(w, http.StatusBadRequest, r.RequestURI, "Satellite not found", nil)
+			return
+		}
+
+		cMutex.Lock()
+		delete(Config.Satellites, satelliteName)
+		err := WriteConfig()
+
+		if err != nil {
+			Config.Satellites[satelliteName] = satelliteStruct
+			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not removed.", nil)
+			return
+		}
+		cMutex.Unlock()
+
+	} else {
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+		return
+	}
+
 }
 
 func GetTargets(w http.ResponseWriter, r *http.Request) {
@@ -557,6 +641,17 @@ func commonMiddleware(next http.Handler) http.Handler {
 		w.Header().Add(HeaderNprobeConfig, fmt.Sprintf("%d", Config.Version))
 		w.Header().Add("X-Powered-By", "nprobe")
 		next.ServeHTTP(w, r)
+	})
+}
+
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(HeaderAuthorization) == Config.Authorization {
+			next.ServeHTTP(w, r)
+		} else {
+			handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+			return
+		}
 	})
 }
 
