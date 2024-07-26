@@ -2,4 +2,4 @@ nprobe
 .idea
 .vscode
 config/config.json
-nprobe.paw
+.env
