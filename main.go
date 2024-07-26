@@ -214,9 +214,7 @@ func main() {
 		router.Group(func(router chi.Router) {
 			router.Get("/healthz", HealthRequest)
 			router.Get("/satellites/{name}", GetSatellite)
-			router.Put("/satellites/{name}", CreateSatellite)
 			//router.Post("/satellites/{name}", UpdateSatellite)
-			router.Delete("/satellite/{name}", DeleteSatellite)
 			router.Get("/satellites/{name}/targets", GetTargets)
 			router.Put("/satellites/{name}/{target}/metrics", SubmitTarget)
 			router.Get("/version", VersionRequest)
@@ -229,6 +227,8 @@ func main() {
 			router.Get("/config", ConfigGet)
 			router.Post("/config", ConfigReload)
 			router.Put("/config", ConfigUpload)
+			router.Put("/satellites/{name}", CreateSatellite)
+			router.Delete("/satellite/{name}", DeleteSatellite)
 		})
 		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+Config.ListenPort, router))
 	} else {
