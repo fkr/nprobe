@@ -2,12 +2,15 @@
 
 ## 0.4.0 (tbd)
 
+- CRUD via RESTful interface for satellites
+- add generic logging middleware
+- better use of chi middleware
 - rework URLs to be more restful - #16
 - avoid unecessary work in retry loops
 - if a satellite has no targets configured, send error upon target retrieval
 - if no authorization is configured print a warning to STDOUT
 - error handling for dns resolution
-- Update pro-bing to 0.4.0
+- Update pro-bing to 0.4.1
 - Proper mutexes around datastructures in head node
 - Dockerfile switch to multi-stage. Means _much_ smaller runtime images due to them being based on alpine
 - Configuration can be updated at runtime by submitting a configuration through PUT to /config - #27
