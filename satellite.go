@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/digitaljanitors/go-httpstat"
+	"github.com/mitchellh/hashstructure/v2"
 	ping "github.com/prometheus-community/pro-bing"
 	"github.com/sirupsen/logrus"
 )
@@ -55,7 +55,7 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 		}
 
 		go wk.Target.submitProbes(r, wk.HeadUrl+"satellites/"+wk.ProbeName+"/"+
-					wk.Target.Name+"/metrics")
+			wk.Target.Name+"/metrics")
 	}
 }
 
@@ -79,7 +79,7 @@ func (target *Target) submitProbes(r ResponsePacket, url string) {
 	client2 := &http.Client{}
 
 	for retry {
-	body, err := client2.Do(request2)
+		body, err := client2.Do(request2)
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Error("HTTP request failed.")
 			log.Debug("Sleeping for 10 seconds")
