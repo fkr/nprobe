@@ -8,18 +8,47 @@ X-Authorization: {{$dotenv MAIN_SECRET}}
 
 ###
 
+POST http://127.0.0.1:8000/config HTTP/1.1
+X-Authorization: {{$dotenv MAIN_SECRET}}
+
+
+###
+
 GET http://127.0.0.1:8000/satellites/localhost-probe HTTP/1.1
-X-Authorization: "{{$dotenv CLIENT_SECRET}}"
+X-Authorization: {{$dotenv CLIENT_SECRET}}
 
 ###
 
 PUT http://127.0.0.1:8000/satellites/localhost-probe2 HTTP/1.1
-X-Authorization: foobar
+X-Authorization: {{$dotenv MAIN_SECRET}}
 Content-Type: application/json
 
 {
+  "Active": true,
   "Name": "localhost-probe2",
   "Targets": [
     "server1"
   ]
 }
+
+###
+
+DELETE http://127.0.0.1:8000/satellites/localhost-probe2 HTTP/1.1
+X-Authorization: {{$dotenv MAIN_SECRET}}
+
+###
+
+PATCH http://127.0.0.1:8000/satellites/localhost-probe2 HTTP/1.1
+X-Authorization: {{$dotenv MAIN_SECRET}}
+Content-Type: application/json
+
+{
+  "Name": "localhost-probe2",
+  "Secret": "{{$dotenv CLIENT_SECRET}}",
+  "Active": true,
+  "Targets": [
+    "server1",
+    "server2"
+  ]
+}
+
