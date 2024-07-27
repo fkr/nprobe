@@ -57,10 +57,16 @@ type ErrorPacket struct {
 type Satellite struct {
 	Active   bool      `mapstructure:"active"`
 	Name     string    `mapstructure:"name"`
-	Secret   string    `mapstructure:"secret" json:"-"`
+	Secret   string    `mapstructure:"secret"`
 	Targets  []string  `mapstructure:"targets"`
-	LastData time.Time `mapstructure:"last_data"`
-	Health   bool      `mapstructure:"health"`
+	LastData time.Time `mapstructure:"last_data" json:"-"`
+	Health   bool      `mapstructure:"health" json:"-"`
+}
+
+type SatelliteConfig struct {
+	Active  bool     `mapstructure:"active"`
+	Name    string   `mapstructure:"name"`
+	Targets []string `mapstructure:"targets"`
 }
 
 type ResponsePacket struct {
@@ -68,6 +74,12 @@ type ResponsePacket struct {
 	TargetName    string  `mapstructure:"target_name"`
 	ProbeType     string  `mapstructure:"probe_type"`
 	Probes        []Probe `mapstructure:"probes"`
+}
+
+type SatelliteCreateResponsePacket struct {
+	Active  bool	`mapstructure:"active"`
+	Name 	string  `mapstructure:"satellite_name"`
+	Secret	string  `mapstructure:"secret"`
 }
 
 type Probe struct {
@@ -214,7 +226,6 @@ func main() {
 		router.Group(func(router chi.Router) {
 			router.Get("/healthz", HealthRequest)
 			router.Get("/satellites/{name}", GetSatellite)
-			//router.Post("/satellites/{name}", UpdateSatellite)
 			router.Get("/satellites/{name}/targets", GetTargets)
 			router.Put("/satellites/{name}/{target}/metrics", SubmitTarget)
 			router.Get("/version", VersionRequest)
@@ -227,8 +238,9 @@ func main() {
 			router.Get("/config", ConfigGet)
 			router.Post("/config", ConfigReload)
 			router.Put("/config", ConfigUpload)
+			router.Patch("/satellites/{name}", UpdateSatellite)
 			router.Put("/satellites/{name}", CreateSatellite)
-			router.Delete("/satellite/{name}", DeleteSatellite)
+			router.Delete("/satellites/{name}", DeleteSatellite)
 		})
 		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+Config.ListenPort, router))
 	} else {
@@ -413,7 +425,11 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get(HeaderAuthorization) == satellite.Secret {
-		err := json.NewEncoder(w).Encode(satellite)
+
+		sJson, _ := json.Marshal(satellite)
+		var sConfig SatelliteConfig
+		json.Unmarshal([]byte(sJson), &sConfig)
+		err := json.NewEncoder(w).Encode(sConfig)
 
 		if err != nil {
 			log.WithFields(logrus.Fields{"error": err}).Error()
@@ -451,6 +467,10 @@ func CreateSatellite(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(logrus.Fields{"satelliteStruct": satelliteStruct}).Debug()
 		satelliteStruct.Name = satelliteName
 
+		if satelliteStruct.Secret == "" {
+			satelliteStruct.Secret = RandomString(20)
+		}
+
 		Config.Satellites[satelliteName] = satelliteStruct
 		log.WithFields(logrus.Fields{"Config after appending new satellite": Config}).Debug()
 
@@ -459,6 +479,72 @@ func CreateSatellite(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			delete(Config.Satellites, satelliteName)
 			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not added.", nil)
+			return
+		}
+		cMutex.Unlock()
+
+		retSatelliteConfig := SatelliteCreateResponsePacket{
+			Name: satelliteStruct.Name,
+			Active: satelliteStruct.Active,
+			Secret: satelliteStruct.Secret,
+		}
+
+		err = json.NewEncoder(w).Encode(retSatelliteConfig)
+
+		if err != nil {
+			log.WithFields(logrus.Fields{"error": err}).Error()
+		}
+		return
+	} else {
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+		return
+	}
+
+}
+
+func UpdateSatellite(w http.ResponseWriter, r *http.Request) {
+
+	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
+
+		satelliteName := chi.URLParam(r, "name")
+		cMutex.Lock()
+		satellite, found := Config.Satellites[satelliteName]
+		cMutex.Unlock()
+
+		if !found {
+			handleError(w, http.StatusBadRequest, r.RequestURI, "Satellite not found", nil)
+			return
+		}
+
+		var satelliteStruct Satellite
+		err := json.NewDecoder(r.Body).Decode(&satelliteStruct)
+
+		if err != nil {
+			log.WithFields(logrus.Fields{"error": err}).Error()
+			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure parsing request. Satellite not updated.	", nil)
+			return
+		}
+
+		log.WithFields(logrus.Fields{"satelliteStruct": satelliteStruct}).Debug()
+
+		satellite.Active = satelliteStruct.Active
+		satellite.Targets = satelliteStruct.Targets
+
+		if satelliteStruct.Secret != "" {
+			satellite.Secret = satelliteStruct.Secret
+		}
+
+		Config.Satellites[satelliteName] = satellite
+
+		log.WithFields(logrus.Fields{
+			"satellite": satellite.Name,
+			"Config":    Config,
+		}).Debugf("Config after updating satellite")
+
+		cMutex.Lock()
+		err = WriteConfig()
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not updated.", nil)
 			return
 		}
 		cMutex.Unlock()
