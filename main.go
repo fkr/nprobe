@@ -241,6 +241,9 @@ func main() {
 			router.Patch("/satellites/{name}", UpdateSatellite)
 			router.Put("/satellites/{name}", CreateSatellite)
 			router.Delete("/satellites/{name}", DeleteSatellite)
+			//router.Patch("/targets/{name}", UpdateTarget)
+			//router.Put("/targets/{name}", CreateTarget)
+			//router.Delete("/targets/{name}", DeleteTarget)
 		})
 		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+Config.ListenPort, router))
 	} else {
@@ -586,6 +589,43 @@ func DeleteSatellite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+}
+
+func CreateTarget(w http.ResponseWriter, r *http.Request) {
+
+	targetName := chi.URLParam(r, "name")
+	cMutex.Lock()
+	_, found := Config.Targets[targetName]
+	cMutex.Unlock()
+
+	if found {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Target already exists", nil)
+		return
+	}
+
+	var targetStruct Target
+	err := json.NewDecoder(r.Body).Decode(&targetStruct)
+
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Error()
+		handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure parsing request. Target not added.", nil)
+		return
+	}
+
+	log.WithFields(logrus.Fields{"targetStruct": targetStruct}).Debug()
+	targetStruct.Name = targetName
+
+	Config.Targets[targetName] = targetStruct
+	log.WithFields(logrus.Fields{"Config after appending new target": Config}).Debug()
+
+	cMutex.Lock()
+	err = WriteConfig()
+	if err != nil {
+		delete(Config.Targets, targetName)
+		handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Target not added.", nil)
+		return
+	}
+	cMutex.Unlock()
 }
 
 func GetTargets(w http.ResponseWriter, r *http.Request) {
