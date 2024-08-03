@@ -3,3 +3,5 @@ nprobe
 .vscode
 config/config.json
 .env
+
+dist/
