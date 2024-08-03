@@ -77,9 +77,9 @@ type ResponsePacket struct {
 }
 
 type SatelliteCreateResponsePacket struct {
-	Active  bool	`mapstructure:"active"`
-	Name 	string  `mapstructure:"satellite_name"`
-	Secret	string  `mapstructure:"secret"`
+	Active bool   `mapstructure:"active"`
+	Name   string `mapstructure:"satellite_name"`
+	Secret string `mapstructure:"secret"`
 }
 
 type Probe struct {
@@ -487,7 +487,7 @@ func CreateSatellite(w http.ResponseWriter, r *http.Request) {
 		cMutex.Unlock()
 
 		retSatelliteConfig := SatelliteCreateResponsePacket{
-			Name: satelliteStruct.Name,
+			Name:   satelliteStruct.Name,
 			Active: satelliteStruct.Active,
 			Secret: satelliteStruct.Secret,
 		}
