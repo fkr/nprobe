@@ -136,9 +136,9 @@ var commit = func() string {
 	}
 	return commitS
 }()
-var version = "0.0.3"
+var version = "0.4.0"
 
-const apiVersion = "0.3.0"
+const apiVersion = "1.0.0"
 const HeaderAuthorization = "X-Authorization"
 const HeaderNprobeVersion = "X-Nprobe-Version"
 const HeaderNprobeApiVersion = "X-Nprobe-Api-Version"
