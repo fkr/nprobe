@@ -2,6 +2,7 @@
 
 ## 0.4.0 (tbd)
 
+- Add goreleaser tooling
 - CRUD via RESTful interface for satellites
 - add generic logging middleware
 - better use of chi middleware
