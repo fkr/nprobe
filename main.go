@@ -445,150 +445,126 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateSatellite(w http.ResponseWriter, r *http.Request) {
+	// CreateSatellite is behind authMiddleware
+	satelliteName := chi.URLParam(r, "name")
+	cMutex.Lock()
+	_, found := Config.Satellites[chi.URLParam(r, "name")]
+	cMutex.Unlock()
 
-	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
-
-		satelliteName := chi.URLParam(r, "name")
-		cMutex.Lock()
-		_, found := Config.Satellites[chi.URLParam(r, "name")]
-		cMutex.Unlock()
-
-		if found {
-			handleError(w, http.StatusBadRequest, r.RequestURI, "Satellite already exists", nil)
-			return
-		}
-
-		var satelliteStruct Satellite
-		err := json.NewDecoder(r.Body).Decode(&satelliteStruct)
-
-		if err != nil {
-			log.WithFields(logrus.Fields{"error": err}).Error()
-			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure parsing request. Satellite not added.", nil)
-			return
-		}
-
-		log.WithFields(logrus.Fields{"satelliteStruct": satelliteStruct}).Debug()
-		satelliteStruct.Name = satelliteName
-
-		if satelliteStruct.Secret == "" {
-			satelliteStruct.Secret = RandomString(20)
-		}
-
-		Config.Satellites[satelliteName] = satelliteStruct
-		log.WithFields(logrus.Fields{"Config after appending new satellite": Config}).Debug()
-
-		cMutex.Lock()
-		err = WriteConfig()
-		if err != nil {
-			delete(Config.Satellites, satelliteName)
-			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not added.", nil)
-			return
-		}
-		cMutex.Unlock()
-
-		retSatelliteConfig := SatelliteCreateResponsePacket{
-			Name:   satelliteStruct.Name,
-			Active: satelliteStruct.Active,
-			Secret: satelliteStruct.Secret,
-		}
-
-		err = json.NewEncoder(w).Encode(retSatelliteConfig)
-
-		if err != nil {
-			log.WithFields(logrus.Fields{"error": err}).Error()
-		}
-		return
-	} else {
-		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+	if found {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Satellite already exists", nil)
 		return
 	}
 
+	var satelliteStruct Satellite
+	err := json.NewDecoder(r.Body).Decode(&satelliteStruct)
+
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Error()
+		handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure parsing request. Satellite not added.", nil)
+		return
+	}
+
+	log.WithFields(logrus.Fields{"satelliteStruct": satelliteStruct}).Debug()
+	satelliteStruct.Name = satelliteName
+
+	if satelliteStruct.Secret == "" {
+		satelliteStruct.Secret = RandomString(20)
+	}
+
+	Config.Satellites[satelliteName] = satelliteStruct
+	log.WithFields(logrus.Fields{"Config after appending new satellite": Config}).Debug()
+
+	cMutex.Lock()
+	err = WriteConfig()
+	if err != nil {
+		delete(Config.Satellites, satelliteName)
+		handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not added.", nil)
+		return
+	}
+	cMutex.Unlock()
+
+	retSatelliteConfig := SatelliteCreateResponsePacket{
+		Name:   satelliteStruct.Name,
+		Active: satelliteStruct.Active,
+		Secret: satelliteStruct.Secret,
+	}
+
+	err = json.NewEncoder(w).Encode(retSatelliteConfig)
+
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Error()
+	}
 }
 
 func UpdateSatellite(w http.ResponseWriter, r *http.Request) {
+	// UpdateSatellite is behind authMiddleware
+	satelliteName := chi.URLParam(r, "name")
+	cMutex.Lock()
+	satellite, found := Config.Satellites[satelliteName]
+	cMutex.Unlock()
 
-	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
-
-		satelliteName := chi.URLParam(r, "name")
-		cMutex.Lock()
-		satellite, found := Config.Satellites[satelliteName]
-		cMutex.Unlock()
-
-		if !found {
-			handleError(w, http.StatusBadRequest, r.RequestURI, "Satellite not found", nil)
-			return
-		}
-
-		var satelliteStruct Satellite
-		err := json.NewDecoder(r.Body).Decode(&satelliteStruct)
-
-		if err != nil {
-			log.WithFields(logrus.Fields{"error": err}).Error()
-			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure parsing request. Satellite not updated.	", nil)
-			return
-		}
-
-		log.WithFields(logrus.Fields{"satelliteStruct": satelliteStruct}).Debug()
-
-		satellite.Active = satelliteStruct.Active
-		satellite.Targets = satelliteStruct.Targets
-
-		if satelliteStruct.Secret != "" {
-			satellite.Secret = satelliteStruct.Secret
-		}
-
-		Config.Satellites[satelliteName] = satellite
-
-		log.WithFields(logrus.Fields{
-			"satellite": satellite.Name,
-			"Config":    Config,
-		}).Debugf("Config after updating satellite")
-
-		cMutex.Lock()
-		err = WriteConfig()
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not updated.", nil)
-			return
-		}
-		cMutex.Unlock()
-
-	} else {
-		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+	if !found {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Satellite not found", nil)
 		return
 	}
 
+	var satelliteStruct Satellite
+	err := json.NewDecoder(r.Body).Decode(&satelliteStruct)
+
+	if err != nil {
+		log.WithFields(logrus.Fields{"error": err}).Error()
+		handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure parsing request. Satellite not updated.	", nil)
+		return
+	}
+
+	log.WithFields(logrus.Fields{"satelliteStruct": satelliteStruct}).Debug()
+
+	satellite.Active = satelliteStruct.Active
+	satellite.Targets = satelliteStruct.Targets
+
+	if satelliteStruct.Secret != "" {
+		satellite.Secret = satelliteStruct.Secret
+	}
+
+	Config.Satellites[satelliteName] = satellite
+
+	log.WithFields(logrus.Fields{
+		"satellite": satellite.Name,
+		"Config":    Config,
+	}).Debugf("Config after updating satellite")
+
+	cMutex.Lock()
+	err = WriteConfig()
+	if err != nil {
+		handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not updated.", nil)
+		return
+	}
+	cMutex.Unlock()
 }
 
 func DeleteSatellite(w http.ResponseWriter, r *http.Request) {
+	// DeleteSatellite is behind authMiddleware
+	satelliteName := chi.URLParam(r, "name")
+	cMutex.Lock()
+	satelliteStruct, found := Config.Satellites[chi.URLParam(r, "name")]
+	cMutex.Unlock()
 
-	if r.Header.Get(HeaderAuthorization) == Config.Authorization {
-
-		satelliteName := chi.URLParam(r, "name")
-		cMutex.Lock()
-		satelliteStruct, found := Config.Satellites[chi.URLParam(r, "name")]
-		cMutex.Unlock()
-
-		if !found {
-			handleError(w, http.StatusBadRequest, r.RequestURI, "Satellite not found", nil)
-			return
-		}
-
-		cMutex.Lock()
-		delete(Config.Satellites, satelliteName)
-		err := WriteConfig()
-
-		if err != nil {
-			Config.Satellites[satelliteName] = satelliteStruct
-			handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not removed.", nil)
-			return
-		}
-		cMutex.Unlock()
-
-	} else {
-		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
+	if !found {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Satellite not found", nil)
 		return
 	}
 
+	cMutex.Lock()
+	delete(Config.Satellites, satelliteName)
+	err := WriteConfig()
+
+	if err != nil {
+		Config.Satellites[satelliteName] = satelliteStruct
+		handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not removed.", nil)
+		return
+	}
+	cMutex.Unlock()
 }
 
 func CreateTarget(w http.ResponseWriter, r *http.Request) {
