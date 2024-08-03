@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.4.0 (tbd)
+## 0.4.0 (2024-08-04)
 
 - Add goreleaser tooling
 - CRUD via RESTful interface for satellites
