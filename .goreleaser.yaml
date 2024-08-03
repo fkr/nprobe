@@ -32,8 +32,10 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 
 dockers:
-  - image_templates:
-      - "ghcr.io/fkr/nprobe:{{ .ShortCommit }}"
+  -
+    dockerfile: "Dockerfile.goreleaser"
+    image_templates:
+        - "ghcr.io/fkr/nprobe:{{ .ShortCommit }}"
 
 changelog:
   sort: asc
