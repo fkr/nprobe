@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,46 +20,34 @@ import (
 const retryCounter = 10
 const retryTimer = 10 // seconds
 
-func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
-	defer func() {
-		log.WithFields(logrus.Fields{"worker": wk.Id, "target": wk.Target.Name}).Error("Running through defer")
-		if r := recover(); r != nil {
-			if err, ok := r.(error); ok {
-				wk.Err = err
-			} else {
-				wk.Err = fmt.Errorf("panic happened with %v", r)
-				log.WithFields(logrus.Fields{"worker": wk.Id, "target": wk.Target.Name, "error": wk.Err}).Error("Paniced")
-			}
-		} else {
-			wk.Err = err
-			log.WithFields(logrus.Fields{"worker": wk.Id, "target": wk.Target.Name, "error": wk.Err}).Error("Error")
-		}
-		ch <- wk
-	}()
+func (wk *Worker) HandleProbe(ctx context.Context, ch chan *Worker) error {
+	// Create a semaphore to limit concurrent submissions
+	sem := make(chan struct{}, 10) // Limit to 10 concurrent submissions
 
 	for {
-		log.WithFields(logrus.Fields{
-			"target":   wk.Target.Name,
-			"type":     wk.Target.ProbeType,
-			"interval": wk.Target.Interval,
-		}).Debug("Sleeping in main for loop")
-		time.Sleep(time.Duration(wk.Target.Interval) * time.Second)
-		log.Debug("Time to wake up")
-		var r = ResponsePacket{}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			time.Sleep(time.Duration(wk.Target.Interval) * time.Second)
 
-		if wk.Target.ProbeType == "icmp" {
-			log.Debug("probe type: icmp")
-			r = wk.Target.probeIcmp(wk.ProbeName)
-		}
-		if wk.Target.ProbeType == "http" {
-			r = wk.Target.probeHttp(wk.ProbeName)
-		}
+			var r = ResponsePacket{}
+			if wk.Target.ProbeType == "icmp" {
+				r = wk.Target.probeIcmp(wk.ProbeName)
+			} else if wk.Target.ProbeType == "http" {
+				r = wk.Target.probeHttp(wk.ProbeName)
+			}
 
-		go wk.Target.submitProbes(r, wk.HeadUrl+"satellites/"+wk.ProbeName+"/"+
-			wk.Target.Name+"/metrics")
+			// Acquire semaphore
+			sem <- struct{}{}
+			go func(r ResponsePacket) {
+				defer func() { <-sem }() // Release semaphore
+				wk.Target.submitProbes(r, wk.HeadUrl+"satellites/"+wk.ProbeName+"/"+
+					wk.Target.Name+"/metrics")
+			}(r)
+		}
 	}
 }
-
 func (target *Target) submitProbes(r ResponsePacket, url string) {
 
 	retry := true
