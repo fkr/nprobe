@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Configuration represents the application settings, including database, server, debug, and monitoring configurations.
 type Configuration struct {
 	Authorization string               `mapstructure:"authorization"`
 	Database      InfluxConfiguration  `mapstructure:"database"`
@@ -891,6 +892,9 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 	log.Info("Health-Check completed OK")
 }
 
+// VersionRequest handles a version information request, responding with the current version and configuration details.
+// It sends a JSON response containing "Version" and "Configuration" fields to the client.
+// Logs errors if the response fails to be written.
 func VersionRequest(w http.ResponseWriter, _ *http.Request) {
 	_, err := w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\", \"Configuration:\" \"%d\" }", version, Config.Version)))
 
@@ -899,6 +903,7 @@ func VersionRequest(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
+// dumpRequest logs the full HTTP request if the log level is set to Debug. Useful for debugging HTTP interactions.
 func dumpRequest(r *http.Request) {
 	if log.GetLevel() == logrus.DebugLevel {
 		requestDump, err := httputil.DumpRequest(r, true)
