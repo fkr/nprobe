@@ -1,9 +1,11 @@
 {
+  "_comment_security": "SECURITY BEST PRACTICES: (1) Use INFLUXDB_TOKEN environment variable instead of storing token in this file. (2) Use NPROBE_SECRET env var for satellite secrets. (3) Never commit real secrets to version control. (4) Ensure this file has restrictive permissions (chmod 600).",
   "listen_ip": "",
   "listen_port": "8000",
   "database": {
     "host": "http://localhost:8086",
     "token": "<INFLUX TOKEN>",
+    "_comment_token": "SECURITY: Use environment variable INFLUXDB_TOKEN instead of storing in config file. Token must be 20+ chars. Avoid committing real tokens to version control.",
     "org": "nprobe",
     "bucket": "nprobe"
   },

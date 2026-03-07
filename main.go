@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -12,8 +13,10 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -108,6 +111,165 @@ type Worker struct {
 	ProbeName string
 	Id        int
 	Err       error
+}
+
+// SecureString provides memory protection for sensitive strings
+// It zeros memory on finalization to prevent secrets from lingering
+type SecureString struct {
+	data []byte
+	mu   sync.RWMutex
+}
+
+// NewSecureString creates a new SecureString from a regular string
+func NewSecureString(s string) *SecureString {
+	ss := &SecureString{
+		data: []byte(s),
+	}
+	runtime.SetFinalizer(ss, (*SecureString).Destroy)
+	return ss
+}
+
+// String returns the underlying string value (use sparingly)
+func (ss *SecureString) String() string {
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
+	return string(ss.data)
+}
+
+// Bytes returns the underlying byte slice (use sparingly)
+func (ss *SecureString) Bytes() []byte {
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
+	return ss.data
+}
+
+// CompareConstantTime performs a constant-time comparison to prevent timing attacks
+func (ss *SecureString) CompareConstantTime(other string) bool {
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
+	return subtle.ConstantTimeCompare(ss.data, []byte(other)) == 1
+}
+
+// Destroy zeros the memory and clears the data
+func (ss *SecureString) Destroy() {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	// Zero out the memory
+	for i := range ss.data {
+		ss.data[i] = 0
+	}
+	ss.data = nil
+}
+
+// IsEmpty checks if the SecureString is empty
+func (ss *SecureString) IsEmpty() bool {
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
+	return len(ss.data) == 0
+}
+
+// SafeConfiguration is used for safe logging that masks sensitive data
+type SafeConfiguration struct {
+	Authorization string                    `json:"authorization"`
+	Database      SafeInfluxConfiguration   `json:"database"`
+	Debug         bool                      `json:"debug"`
+	ListenIP      string                    `json:"listen_ip"`
+	ListenPort    string                    `json:"listen_port"`
+	Privileged    bool                      `json:"privileged"`
+	Satellites    map[string]SafeSatellite  `json:"satellites"`
+	Targets       map[string]Target         `json:"targets"`
+	Version       int64                     `json:"version"`
+}
+
+type SafeInfluxConfiguration struct {
+	Host   string `json:"host"`
+	Token  string `json:"token"` // masked value
+	Org    string `json:"org"`
+	Bucket string `json:"bucket"`
+}
+
+type SafeSatellite struct {
+	Active   bool      `json:"active"`
+	Name     string    `json:"name"`
+	Secret   string    `json:"secret"` // masked value
+	Targets  []string  `json:"targets"`
+	LastData time.Time `json:"-"`
+	Health   bool      `json:"-"`
+}
+
+// SafeForLogging returns a configuration struct with all secrets masked
+func (c Configuration) SafeForLogging() SafeConfiguration {
+	safe := SafeConfiguration{
+		Authorization: maskSecret(c.Authorization),
+		Database: SafeInfluxConfiguration{
+			Host:   c.Database.Host,
+			Token:  maskSecret(c.Database.Token),
+			Org:    c.Database.Org,
+			Bucket: c.Database.Bucket,
+		},
+		Debug:      c.Debug,
+		ListenIP:   c.ListenIP,
+		ListenPort: c.ListenPort,
+		Privileged: c.Privileged,
+		Satellites: make(map[string]SafeSatellite),
+		Targets:    c.Targets,
+		Version:    c.Version,
+	}
+
+	// Mask satellite secrets
+	for name, sat := range c.Satellites {
+		safe.Satellites[name] = SafeSatellite{
+			Active:   sat.Active,
+			Name:     sat.Name,
+			Secret:   maskSecret(sat.Secret),
+			Targets:  sat.Targets,
+			LastData: sat.LastData,
+			Health:   sat.Health,
+		}
+	}
+
+	return safe
+}
+
+// maskSecret returns a masked version of a secret string
+func maskSecret(secret string) string {
+	if secret == "" {
+		return ""
+	}
+	if len(secret) <= 4 {
+		return "***"
+	}
+	// Show first 4 chars and mask the rest
+	return secret[:4] + "..." + strings.Repeat("*", 8)
+}
+
+// ValidateInfluxToken validates the InfluxDB token format
+func ValidateInfluxToken(token string) error {
+	if token == "" {
+		return nil // Token is optional if database is not configured
+	}
+
+	// Check for common placeholder values
+	placeholders := []string{
+		"<INFLUX TOKEN>",
+		"<TOKEN>",
+		"YOUR_TOKEN_HERE",
+		"CHANGE_ME",
+		"REPLACE_ME",
+	}
+
+	for _, placeholder := range placeholders {
+		if strings.EqualFold(token, placeholder) {
+			return errors.New("placeholder token detected - update config file with real token")
+		}
+	}
+
+	// Basic length validation - InfluxDB tokens are typically quite long
+	if len(token) < 20 {
+		return fmt.Errorf("token appears too short (length: %d) - InfluxDB tokens are typically 86+ characters", len(token))
+	}
+
+	return nil
 }
 
 var cMutex sync.Mutex
@@ -206,6 +368,17 @@ func main() {
 
 		parseConfig(configFile)
 		ConfigFile = *configFile
+
+		// Override InfluxDB token from environment variable if set
+		if envToken := os.Getenv("INFLUXDB_TOKEN"); envToken != "" {
+			log.Debug("Using InfluxDB token from INFLUXDB_TOKEN environment variable")
+			Config.Database.Token = envToken
+		}
+
+		// Validate InfluxDB token
+		if err := ValidateInfluxToken(Config.Database.Token); err != nil {
+			log.WithFields(logrus.Fields{"error": err}).Fatal("Invalid InfluxDB token")
+		}
 
 		if Config.Database.Host != "" {
 			Client = influxdb2.NewClient(Config.Database.Host, Config.Database.Token)
@@ -977,5 +1150,5 @@ func parseConfig(configPtr *string) {
 	now := time.Now()
 	Config.Version = now.Unix()
 
-	log.Debugf("%+v", Config)
+	log.Debugf("%+v", Config.SafeForLogging())
 }
