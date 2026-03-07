@@ -247,6 +247,10 @@ func main() {
 		})
 		log.Fatal(http.ListenAndServe(Config.ListenIP+":"+Config.ListenPort, router))
 	} else {
+		// Validate probe name before using it in URLs
+		if err := ValidateIdentifier(*probeName, "probe name"); err != nil {
+			log.WithFields(logrus.Fields{"error": err, "probeName": *probeName}).Fatal("Invalid probe name")
+		}
 
 		headUrl := "https://"
 		if *notls {
@@ -417,9 +421,16 @@ func WriteConfig() error {
 }
 
 func GetSatellite(w http.ResponseWriter, r *http.Request) {
+	satelliteName := chi.URLParam(r, "name")
+
+	// Validate satellite name
+	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Invalid satellite name", err)
+		return
+	}
 
 	cMutex.Lock()
-	satellite, found := Config.Satellites[chi.URLParam(r, "name")]
+	satellite, found := Config.Satellites[satelliteName]
 	cMutex.Unlock()
 
 	if !found {
@@ -447,8 +458,15 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 func CreateSatellite(w http.ResponseWriter, r *http.Request) {
 	// CreateSatellite is behind authMiddleware
 	satelliteName := chi.URLParam(r, "name")
+
+	// Validate satellite name
+	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Invalid satellite name", err)
+		return
+	}
+
 	cMutex.Lock()
-	_, found := Config.Satellites[chi.URLParam(r, "name")]
+	_, found := Config.Satellites[satelliteName]
 	cMutex.Unlock()
 
 	if found {
@@ -500,6 +518,13 @@ func CreateSatellite(w http.ResponseWriter, r *http.Request) {
 func UpdateSatellite(w http.ResponseWriter, r *http.Request) {
 	// UpdateSatellite is behind authMiddleware
 	satelliteName := chi.URLParam(r, "name")
+
+	// Validate satellite name
+	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Invalid satellite name", err)
+		return
+	}
+
 	cMutex.Lock()
 	satellite, found := Config.Satellites[satelliteName]
 	cMutex.Unlock()
@@ -546,8 +571,15 @@ func UpdateSatellite(w http.ResponseWriter, r *http.Request) {
 func DeleteSatellite(w http.ResponseWriter, r *http.Request) {
 	// DeleteSatellite is behind authMiddleware
 	satelliteName := chi.URLParam(r, "name")
+
+	// Validate satellite name
+	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Invalid satellite name", err)
+		return
+	}
+
 	cMutex.Lock()
-	satelliteStruct, found := Config.Satellites[chi.URLParam(r, "name")]
+	satelliteStruct, found := Config.Satellites[satelliteName]
 	cMutex.Unlock()
 
 	if !found {
@@ -568,8 +600,14 @@ func DeleteSatellite(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateTarget(w http.ResponseWriter, r *http.Request) {
-
 	targetName := chi.URLParam(r, "name")
+
+	// Validate target name
+	if err := ValidateIdentifier(targetName, "target name"); err != nil {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Invalid target name", err)
+		return
+	}
+
 	cMutex.Lock()
 	_, found := Config.Targets[targetName]
 	cMutex.Unlock()
@@ -605,9 +643,16 @@ func CreateTarget(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetTargets(w http.ResponseWriter, r *http.Request) {
+	satelliteName := chi.URLParam(r, "name")
+
+	// Validate satellite name
+	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Invalid satellite name", err)
+		return
+	}
 
 	cMutex.Lock()
-	satellite, found := Config.Satellites[chi.URLParam(r, "name")]
+	satellite, found := Config.Satellites[satelliteName]
 	cMutex.Unlock()
 
 	if !found {
@@ -653,11 +698,23 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 func SubmitTarget(w http.ResponseWriter, r *http.Request) {
+	satelliteName := chi.URLParam(r, "name")
+	targetName := chi.URLParam(r, "target")
+
+	// Validate satellite name
+	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Invalid satellite name", err)
+		return
+	}
+
+	// Validate target name
+	if err := ValidateIdentifier(targetName, "target name"); err != nil {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Invalid target name", err)
+		return
+	}
 
 	cMutex.Lock()
-	satelliteName := chi.URLParam(r, "name")
 	satellite, found := Config.Satellites[satelliteName]
-	//target := chi.URLParam(r, "target")
 	cMutex.Unlock()
 
 	if !found {

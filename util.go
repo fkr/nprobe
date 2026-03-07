@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"math/rand"
+	"regexp"
 	"time"
 )
 
@@ -13,4 +15,27 @@ func RandomString(length int) string {
 		result[i] = chars[r.Intn(len(chars))]
 	}
 	return string(result)
+}
+
+// ValidateIdentifier validates that an identifier (satellite name, target name, etc.)
+// is not empty, within reasonable length, and contains only allowed characters.
+// Allowed characters: alphanumeric, hyphen, underscore, dot
+// Maximum length: 255 characters
+func ValidateIdentifier(identifier string, identifierType string) error {
+	if identifier == "" {
+		return errors.New(identifierType + " cannot be empty")
+	}
+
+	if len(identifier) > 255 {
+		return errors.New(identifierType + " exceeds maximum length of 255 characters")
+	}
+
+	// Allow alphanumeric characters, hyphens, underscores, and dots
+	// Must not start or end with special characters
+	validPattern := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$`)
+	if !validPattern.MatchString(identifier) {
+		return errors.New(identifierType + " contains invalid characters or format. Only alphanumeric, hyphen, underscore, and dot are allowed")
+	}
+
+	return nil
 }
