@@ -272,7 +272,7 @@ func ValidateInfluxToken(token string) error {
 	return nil
 }
 
-var cMutex sync.Mutex
+var cMutex sync.RWMutex
 var Config Configuration
 var ConfigFile string
 var Client influxdb2.Client
@@ -529,14 +529,18 @@ func main() {
 
 func ConfigReload(_ http.ResponseWriter, r *http.Request) {
 	log.Infof("Config Reload triggered")
+	cMutex.Lock()
 	parseConfig(&ConfigFile)
+	cMutex.Unlock()
 }
 
 func ConfigGet(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Config Get requested")
-	cMutex.Lock()
-	err := json.NewEncoder(w).Encode(Config)
-	cMutex.Unlock()
+	cMutex.RLock()
+	safeConfig := Config.SafeForLogging()
+	cMutex.RUnlock()
+
+	err := json.NewEncoder(w).Encode(safeConfig)
 
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Error()
@@ -603,9 +607,9 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cMutex.Lock()
+	cMutex.RLock()
 	satellite, found := Config.Satellites[satelliteName]
-	cMutex.Unlock()
+	cMutex.RUnlock()
 
 	if !found {
 		handleError(w, http.StatusNotFound, r.RequestURI, "Requested item not found", nil)
@@ -664,13 +668,15 @@ func CreateSatellite(w http.ResponseWriter, r *http.Request) {
 		satelliteStruct.Secret = RandomString(20)
 	}
 
-	Config.Satellites[satelliteName] = satelliteStruct
-	log.WithFields(logrus.Fields{"Config after appending new satellite": Config}).Debug()
-
+	// Acquire lock before modifying Config
 	cMutex.Lock()
+	Config.Satellites[satelliteName] = satelliteStruct
+	log.WithFields(logrus.Fields{"Config after appending new satellite": Config.SafeForLogging()}).Debug()
+
 	err = WriteConfig()
 	if err != nil {
 		delete(Config.Satellites, satelliteName)
+		cMutex.Unlock()
 		handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not added.", nil)
 		return
 	}
@@ -726,16 +732,18 @@ func UpdateSatellite(w http.ResponseWriter, r *http.Request) {
 		satellite.Secret = satelliteStruct.Secret
 	}
 
+	// Acquire lock before modifying Config
+	cMutex.Lock()
 	Config.Satellites[satelliteName] = satellite
 
 	log.WithFields(logrus.Fields{
 		"satellite": satellite.Name,
-		"Config":    Config,
+		"Config":    Config.SafeForLogging(),
 	}).Debugf("Config after updating satellite")
 
-	cMutex.Lock()
 	err = WriteConfig()
 	if err != nil {
+		cMutex.Unlock()
 		handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not updated.", nil)
 		return
 	}
@@ -767,6 +775,7 @@ func DeleteSatellite(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		Config.Satellites[satelliteName] = satelliteStruct
+		cMutex.Unlock()
 		handleError(w, http.StatusInternalServerError, r.RequestURI, "Failure persisting config. Satellite not removed.", nil)
 		return
 	}
@@ -825,27 +834,31 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cMutex.Lock()
+	// Use read lock for read-only access
+	cMutex.RLock()
 	satellite, found := Config.Satellites[satelliteName]
-	cMutex.Unlock()
 
 	if !found {
+		cMutex.RUnlock()
 		handleError(w, http.StatusNotFound, r.RequestURI, "Requested item not found", nil)
 		return
 	}
 
 	if !SecureCompareStrings(r.Header.Get(HeaderAuthorization), satellite.Secret) {
+		cMutex.RUnlock()
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
 	}
 
 	if !satellite.Active {
+		cMutex.RUnlock()
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here",
 			errors.New("satellite marked inactive"))
 		return
 	}
 
 	if len(satellite.Targets) == 0 {
+		cMutex.RUnlock()
 		msg := "no targets for satellite configured"
 		handleError(w, http.StatusServiceUnavailable, r.RequestURI, msg, errors.New(msg))
 		return
@@ -855,9 +868,18 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 	var i = 0
 
 	for _, k := range satellite.Targets {
-		targets[i] = Config.Targets[k]
+		target, exists := Config.Targets[k]
+		if !exists {
+			log.Warnf("Target %s not found for satellite %s, skipping", k, satelliteName)
+			continue
+		}
+		targets[i] = target
 		i++
 	}
+	cMutex.RUnlock()
+
+	// Resize targets slice if some were skipped
+	targets = targets[:i]
 
 	log.WithFields(logrus.Fields{
 		"satellite": satellite.Name,
@@ -925,7 +947,11 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 	satelliteConfigVersion := r.Header.Get(HeaderNprobeConfig)
 
 	if sConfigVersion, err := strconv.Atoi(satelliteConfigVersion); err == nil {
-		if int64(sConfigVersion) < Config.Version {
+		cMutex.RLock()
+		headConfigVersion := Config.Version
+		cMutex.RUnlock()
+
+		if int64(sConfigVersion) < headConfigVersion {
 			w.WriteHeader(204)
 		}
 	} else {
@@ -934,10 +960,16 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeData(responsePacket ResponsePacket) {
+	// Read database configuration with read lock
+	cMutex.RLock()
+	dbHost := Config.Database.Host
+	dbOrg := Config.Database.Org
+	dbBucket := Config.Database.Bucket
+	cMutex.RUnlock()
 
-	if Config.Database.Host != "" {
+	if dbHost != "" {
 		// user blocking write client for writes to desired bucket
-		writeAPI := Client.WriteAPI(Config.Database.Org, Config.Database.Bucket)
+		writeAPI := Client.WriteAPI(dbOrg, dbBucket)
 		// create point using fluent style
 
 		for _, probe := range responsePacket.Probes {
@@ -980,7 +1012,12 @@ func commonMiddleware(next http.Handler) http.Handler {
 		w.Header().Add("Content-Type", "application/vnd.api+json")
 		w.Header().Add(HeaderNprobeApiVersion, apiVersion)
 		w.Header().Add(HeaderNprobeVersion, version)
-		w.Header().Add(HeaderNprobeConfig, fmt.Sprintf("%d", Config.Version))
+
+		cMutex.RLock()
+		configVersion := Config.Version
+		cMutex.RUnlock()
+
+		w.Header().Add(HeaderNprobeConfig, fmt.Sprintf("%d", configVersion))
 		w.Header().Add("X-Powered-By", "nprobe")
 		next.ServeHTTP(w, r)
 	})
@@ -988,7 +1025,11 @@ func commonMiddleware(next http.Handler) http.Handler {
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if SecureCompareStrings(r.Header.Get(HeaderAuthorization), Config.Authorization) {
+		cMutex.RLock()
+		configAuth := Config.Authorization
+		cMutex.RUnlock()
+
+		if SecureCompareStrings(r.Header.Get(HeaderAuthorization), configAuth) {
 			next.ServeHTTP(w, r)
 		} else {
 			handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
@@ -1005,7 +1046,12 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get(HeaderAuthorization)
 	authedRequest := false
 
-	if SecureCompareStrings(authHeader, Config.Authorization) {
+	// Read authorization for comparison
+	cMutex.RLock()
+	configAuth := Config.Authorization
+	cMutex.RUnlock()
+
+	if SecureCompareStrings(authHeader, configAuth) {
 		authedRequest = true
 	}
 
@@ -1016,7 +1062,7 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 			log.WithFields(logrus.Fields{"error": err}).Error()
 
 			if authedRequest {
-				if health != nil {
+				if health != nil && health.Message != nil {
 					msg = fmt.Sprintf("Influx Error: %s", *health.Message)
 				}
 			} else {
@@ -1029,6 +1075,8 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Acquire read lock for checking satellite health
+	cMutex.RLock()
 	// check each satellite
 	for _, k := range Config.Satellites {
 		if k.Active {
@@ -1037,7 +1085,11 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 			// find interval
 			interval := math.MaxInt64
 			for _, t := range k.Targets {
-				s := Config.Targets[t]
+				s, exists := Config.Targets[t]
+				if !exists {
+					log.Warnf("Target %s not found for satellite %s", t, k.Name)
+					continue
+				}
 				if s.Interval < interval {
 					interval = s.Interval
 				}
@@ -1056,11 +1108,13 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 					msg = ""
 				}
 
+				cMutex.RUnlock()
 				handleError(w, http.StatusServiceUnavailable, "/healthz", msg, err)
 				return
 			}
 		}
 	}
+	cMutex.RUnlock()
 
 	log.Info("Health-Check completed OK")
 }
@@ -1069,7 +1123,11 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 // It sends a JSON response containing "Version" and "Configuration" fields to the client.
 // Logs errors if the response fails to be written.
 func VersionRequest(w http.ResponseWriter, _ *http.Request) {
-	_, err := w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\", \"Configuration:\" \"%d\" }", version, Config.Version)))
+	cMutex.RLock()
+	configVersion := Config.Version
+	cMutex.RUnlock()
+
+	_, err := w.Write([]byte(fmt.Sprintf("{ \"Version:\" \"%s\", \"Configuration:\" \"%d\" }", version, configVersion)))
 
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Error()
