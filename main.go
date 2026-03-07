@@ -439,7 +439,7 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get(HeaderAuthorization) == satellite.Secret {
+	if SecureCompareStrings(r.Header.Get(HeaderAuthorization), satellite.Secret) {
 
 		sJson, _ := json.Marshal(satellite)
 		var sConfig SatelliteConfig
@@ -661,7 +661,7 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get(HeaderAuthorization) != satellite.Secret {
+	if !SecureCompareStrings(r.Header.Get(HeaderAuthorization), satellite.Secret) {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
 	}
@@ -724,7 +724,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get(HeaderAuthorization) != satellite.Secret {
+	if !SecureCompareStrings(r.Header.Get(HeaderAuthorization), satellite.Secret) {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
 	}
@@ -815,7 +815,7 @@ func commonMiddleware(next http.Handler) http.Handler {
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get(HeaderAuthorization) == Config.Authorization {
+		if SecureCompareStrings(r.Header.Get(HeaderAuthorization), Config.Authorization) {
 			next.ServeHTTP(w, r)
 		} else {
 			handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
@@ -832,7 +832,7 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get(HeaderAuthorization)
 	authedRequest := false
 
-	if authHeader == Config.Authorization {
+	if SecureCompareStrings(authHeader, Config.Authorization) {
 		authedRequest = true
 	}
 

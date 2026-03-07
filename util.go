@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"errors"
 	"math/rand"
 	"regexp"
@@ -38,4 +39,14 @@ func ValidateIdentifier(identifier string, identifierType string) error {
 	}
 
 	return nil
+}
+
+// SecureCompareStrings performs a constant-time comparison of two strings.
+// This function is resistant to timing attacks and should be used for comparing
+// sensitive values like secrets, tokens, and passwords.
+// Returns true if the strings are equal, false otherwise.
+func SecureCompareStrings(a, b string) bool {
+	// Convert strings to byte slices for constant-time comparison
+	// subtle.ConstantTimeCompare returns 1 if equal, 0 if not equal
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }

@@ -61,3 +61,66 @@ func TestValidateIdentifier(t *testing.T) {
 		})
 	}
 }
+
+func TestSecureCompareStrings(t *testing.T) {
+	tests := []struct {
+		name     string
+		a        string
+		b        string
+		expected bool
+	}{
+		// Equal strings - should return true
+		{"equal empty strings", "", "", true},
+		{"equal single char", "a", "a", true},
+		{"equal strings", "secret123", "secret123", true},
+		{"equal long strings", "this-is-a-very-long-secret-token-12345", "this-is-a-very-long-secret-token-12345", true},
+		{"equal with special chars", "secret!@#$%", "secret!@#$%", true},
+
+		// Different strings - should return false
+		{"different strings", "secret123", "secret456", false},
+		{"different length", "secret", "secret123", false},
+		{"different case", "Secret", "secret", false},
+		{"empty vs non-empty", "", "secret", false},
+		{"non-empty vs empty", "secret", "", false},
+		{"prefix match", "secret", "secret123", false},
+		{"suffix match", "123secret", "secret", false},
+		{"one char difference", "secret1", "secret2", false},
+
+		// Timing attack scenarios - different lengths and positions
+		{"different at start", "xsecret", "asecret", false},
+		{"different at middle", "secxret", "secaret", false},
+		{"different at end", "secretx", "secreta", false},
+		{"mostly similar", "secrettoken123", "secrettoken456", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SecureCompareStrings(tt.a, tt.b)
+			if result != tt.expected {
+				t.Errorf("SecureCompareStrings(%q, %q) = %v, want %v", tt.a, tt.b, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestSecureCompareStringsSymmetry verifies that comparison is symmetric
+func TestSecureCompareStringsSymmetry(t *testing.T) {
+	testPairs := []struct {
+		a string
+		b string
+	}{
+		{"secret", "secret"},
+		{"secret1", "secret2"},
+		{"", ""},
+		{"a", ""},
+	}
+
+	for _, pair := range testPairs {
+		resultAB := SecureCompareStrings(pair.a, pair.b)
+		resultBA := SecureCompareStrings(pair.b, pair.a)
+		if resultAB != resultBA {
+			t.Errorf("SecureCompareStrings is not symmetric: (%q, %q) = %v, but (%q, %q) = %v",
+				pair.a, pair.b, resultAB, pair.b, pair.a, resultBA)
+		}
+	}
+}
