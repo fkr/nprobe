@@ -106,11 +106,12 @@ type Target struct {
 }
 
 type Worker struct {
-	Target    Target
-	HeadUrl   string
-	ProbeName string
-	Id        int
-	Err       error
+	Target     Target
+	HeadUrl    string
+	HeadClient *http.Client
+	ProbeName  string
+	Id         int
+	Err        error
 }
 
 // SecureString provides memory protection for sensitive strings
@@ -436,13 +437,12 @@ func main() {
 		request, _ := http.NewRequest("GET", headUrl+"satellites/"+*probeName+"/targets", nil)
 		request.Header.Set(HeaderAuthorization, os.Getenv("NPROBE_SECRET"))
 
-		t := &http.Transport{}
+		t := http.DefaultTransport.(*http.Transport).Clone()
 
-		if !*insecureTls {
-			t = &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
+		if *insecureTls {
+			log.Warn("TLS certificate verification of head node is DISABLED (-insecure-tls)")
+			t.TLSClientConfig = &tls.Config{
+				InsecureSkipVerify: true,
 			}
 		}
 		client := &http.Client{Transport: t, Timeout: 15 * time.Second}
@@ -493,10 +493,11 @@ func main() {
 			i := 0
 			for _, k := range targets {
 				wk := &Worker{
-					Target:    k,
-					HeadUrl:   headUrl,
-					ProbeName: *probeName,
-					Id:        i}
+					Target:     k,
+					HeadUrl:    headUrl,
+					HeadClient: client,
+					ProbeName:  *probeName,
+					Id:         i}
 
 				log.WithFields(logrus.Fields{
 					"worker id": i,

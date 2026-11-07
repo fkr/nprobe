@@ -54,12 +54,12 @@ func (wk *Worker) HandleProbe(ch chan *Worker) (err error) {
 			r = wk.Target.probeHttp(wk.ProbeName)
 		}
 
-		go wk.Target.submitProbes(r, wk.HeadUrl+"satellites/"+wk.ProbeName+"/"+
+		go wk.Target.submitProbes(wk.HeadClient, r, wk.HeadUrl+"satellites/"+wk.ProbeName+"/"+
 			wk.Target.Name+"/metrics")
 	}
 }
 
-func (target *Target) submitProbes(r ResponsePacket, url string) {
+func (target *Target) submitProbes(client2 *http.Client, r ResponsePacket, url string) {
 
 	retry := true
 	count := 0
@@ -76,7 +76,6 @@ func (target *Target) submitProbes(r ResponsePacket, url string) {
 	request2.Header.Set(HeaderNprobeVersion, version)
 	request2.Header.Set(HeaderNprobeConfig, fmt.Sprintf("%d", Config.Version))
 	request2.Header.Set(HeaderNprobePayloadHash, fmt.Sprintf("%d", payloadHash))
-	client2 := &http.Client{}
 
 	for retry {
 		body, err := client2.Do(request2)
