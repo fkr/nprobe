@@ -148,3 +148,17 @@ func TestCheckSecret(t *testing.T) {
 		})
 	}
 }
+
+// TestNormalizeNames verifies names are lower-cased to match viper's map keys
+func TestNormalizeNames(t *testing.T) {
+	got := normalizeNames([]string{"Server1", "probe.Example.COM", "lower"})
+	want := []string{"server1", "probe.example.com", "lower"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("normalizeNames()[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+	if normalizeNames(nil) != nil {
+		t.Errorf("normalizeNames(nil) should be nil")
+	}
+}

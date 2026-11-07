@@ -4,8 +4,12 @@ import (
 	"crypto/subtle"
 	"errors"
 	"math/rand"
+	"net/http"
 	"regexp"
+	"strings"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func RandomString(length int) string {
@@ -16,6 +20,30 @@ func RandomString(length int) string {
 		result[i] = chars[r.Intn(len(chars))]
 	}
 	return string(result)
+}
+
+// normalizeName canonicalizes a satellite or target name. Names are
+// case-insensitive because viper lower-cases all map keys when reading the
+// config file, so every lookup must use the lower-case form.
+func normalizeName(name string) string {
+	return strings.ToLower(name)
+}
+
+// normalizeNames applies normalizeName to every element of a slice.
+func normalizeNames(names []string) []string {
+	if names == nil {
+		return nil
+	}
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = normalizeName(n)
+	}
+	return out
+}
+
+// nameParam returns the normalized satellite/target name from a URL parameter.
+func nameParam(r *http.Request, key string) string {
+	return normalizeName(chi.URLParam(r, key))
 }
 
 // ValidateIdentifier validates that an identifier (satellite name, target name, etc.)

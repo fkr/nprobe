@@ -564,6 +564,12 @@ func ConfigUpload(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(logrus.Fields{"error": err}).Fatal("Error while unmarshalling")
 	}
 
+	for name, s := range uploadedConfig.Satellites {
+		s.Name = name
+		s.Targets = normalizeNames(s.Targets)
+		uploadedConfig.Satellites[name] = s
+	}
+
 	cMutex.Lock()
 	Config = uploadedConfig
 
@@ -600,7 +606,7 @@ func WriteConfig() error {
 }
 
 func GetSatellite(w http.ResponseWriter, r *http.Request) {
-	satelliteName := chi.URLParam(r, "name")
+	satelliteName := nameParam(r, "name")
 
 	// Validate satellite name
 	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
@@ -636,7 +642,7 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 
 func CreateSatellite(w http.ResponseWriter, r *http.Request) {
 	// CreateSatellite is behind authMiddleware
-	satelliteName := chi.URLParam(r, "name")
+	satelliteName := nameParam(r, "name")
 
 	// Validate satellite name
 	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
@@ -664,6 +670,7 @@ func CreateSatellite(w http.ResponseWriter, r *http.Request) {
 
 	log.WithFields(logrus.Fields{"satelliteStruct": satelliteStruct}).Debug()
 	satelliteStruct.Name = satelliteName
+	satelliteStruct.Targets = normalizeNames(satelliteStruct.Targets)
 
 	if satelliteStruct.Secret == "" {
 		satelliteStruct.Secret = RandomString(20)
@@ -698,7 +705,7 @@ func CreateSatellite(w http.ResponseWriter, r *http.Request) {
 
 func UpdateSatellite(w http.ResponseWriter, r *http.Request) {
 	// UpdateSatellite is behind authMiddleware
-	satelliteName := chi.URLParam(r, "name")
+	satelliteName := nameParam(r, "name")
 
 	// Validate satellite name
 	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
@@ -727,7 +734,7 @@ func UpdateSatellite(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(logrus.Fields{"satelliteStruct": satelliteStruct}).Debug()
 
 	satellite.Active = satelliteStruct.Active
-	satellite.Targets = satelliteStruct.Targets
+	satellite.Targets = normalizeNames(satelliteStruct.Targets)
 
 	if satelliteStruct.Secret != "" {
 		satellite.Secret = satelliteStruct.Secret
@@ -753,7 +760,7 @@ func UpdateSatellite(w http.ResponseWriter, r *http.Request) {
 
 func DeleteSatellite(w http.ResponseWriter, r *http.Request) {
 	// DeleteSatellite is behind authMiddleware
-	satelliteName := chi.URLParam(r, "name")
+	satelliteName := nameParam(r, "name")
 
 	// Validate satellite name
 	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
@@ -784,7 +791,7 @@ func DeleteSatellite(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateTarget(w http.ResponseWriter, r *http.Request) {
-	targetName := chi.URLParam(r, "name")
+	targetName := nameParam(r, "name")
 
 	// Validate target name
 	if err := ValidateIdentifier(targetName, "target name"); err != nil {
@@ -827,7 +834,7 @@ func CreateTarget(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetTargets(w http.ResponseWriter, r *http.Request) {
-	satelliteName := chi.URLParam(r, "name")
+	satelliteName := nameParam(r, "name")
 
 	// Validate satellite name
 	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
@@ -895,8 +902,8 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 func SubmitTarget(w http.ResponseWriter, r *http.Request) {
-	satelliteName := chi.URLParam(r, "name")
-	targetName := chi.URLParam(r, "target")
+	satelliteName := nameParam(r, "name")
+	targetName := nameParam(r, "target")
 
 	// Validate satellite name
 	if err := ValidateIdentifier(satelliteName, "satellite name"); err != nil {
@@ -969,7 +976,8 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 
 	// Never trust identity fields from the body: the authenticated URL
 	// parameters and the head's own target configuration are authoritative.
-	if responsePacket.SatelliteName != satelliteName || responsePacket.TargetName != targetName {
+	if !strings.EqualFold(responsePacket.SatelliteName, satelliteName) ||
+		!strings.EqualFold(responsePacket.TargetName, targetName) {
 		log.WithFields(logrus.Fields{
 			"satellite":      satelliteName,
 			"target":         targetName,
@@ -1205,8 +1213,11 @@ func parseConfig(configPtr *string) {
 	}
 
 	// inject name from map names, apply defaults
+	// viper lower-cases map keys (satellite and target names) but not the
+	// target references inside slices, so normalize those to match.
 	for name, s := range Config.Satellites {
 		s.Name = name
+		s.Targets = normalizeNames(s.Targets)
 		Config.Satellites[name] = s
 	}
 	for name, k := range Config.Targets {
