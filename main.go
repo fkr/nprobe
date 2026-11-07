@@ -910,9 +910,11 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cMutex.Lock()
+	cMutex.RLock()
 	satellite, found := Config.Satellites[satelliteName]
-	cMutex.Unlock()
+	target, targetExists := Config.Targets[targetName]
+	headConfigVersion := Config.Version
+	cMutex.RUnlock()
 
 	if !found {
 		log.Infof("Satellite name is not found: %s", satelliteName)
@@ -925,38 +927,75 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// we've authorized the request, now we parse the json
-	var responsePacket ResponsePacket
-	_ = json.NewDecoder(r.Body).Decode(&responsePacket)
-
-	log.WithFields(logrus.Fields{"responsePacket": responsePacket}).Debug()
-
 	if !satellite.Active {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here - satellite is marked inactive", nil)
 		return
 	}
 
+	// Tell satellites running on an outdated config to restart (204). This is
+	// checked before the target assignment so that a satellite whose target was
+	// removed still learns about the new config instead of being rejected forever.
+	configOutdated := false
+	satelliteConfigVersion := r.Header.Get(HeaderNprobeConfig)
+	if sConfigVersion, err := strconv.ParseInt(satelliteConfigVersion, 10, 64); err == nil {
+		configOutdated = sConfigVersion < headConfigVersion
+	} else {
+		log.Infof("Submitted Config version is weird: %s", satelliteConfigVersion)
+	}
+
+	// The satellite may only submit metrics for targets assigned to it.
+	assigned := false
+	for _, t := range satellite.Targets {
+		if t == targetName {
+			assigned = true
+			break
+		}
+	}
+	if !assigned || !targetExists {
+		if configOutdated {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here - target not assigned to satellite", nil)
+		return
+	}
+
+	// we've authorized the request, now we parse the json
+	var responsePacket ResponsePacket
+	if err := json.NewDecoder(r.Body).Decode(&responsePacket); err != nil {
+		handleError(w, http.StatusBadRequest, r.RequestURI, "Failure parsing request", err)
+		return
+	}
+
+	// Never trust identity fields from the body: the authenticated URL
+	// parameters and the head's own target configuration are authoritative.
+	if responsePacket.SatelliteName != satelliteName || responsePacket.TargetName != targetName {
+		log.WithFields(logrus.Fields{
+			"satellite":      satelliteName,
+			"target":         targetName,
+			"body_satellite": responsePacket.SatelliteName,
+			"body_target":    responsePacket.TargetName,
+		}).Warn("Metric submission body does not match URL - using URL values")
+	}
+	responsePacket.SatelliteName = satelliteName
+	responsePacket.TargetName = targetName
+	responsePacket.ProbeType = target.ProbeType
+
+	log.WithFields(logrus.Fields{"responsePacket": responsePacket}).Debug()
+
 	writeData(responsePacket)
 
 	cMutex.Lock()
-	s := Config.Satellites[responsePacket.SatelliteName]
-	s.LastData = time.Now()
-	Config.Satellites[responsePacket.SatelliteName] = s
+	// only update satellites that still exist; never create new map entries here
+	if s, ok := Config.Satellites[satelliteName]; ok {
+		s.LastData = time.Now()
+		Config.Satellites[satelliteName] = s
+		log.WithFields(logrus.Fields{"satellite": satelliteName, "last_data": s.LastData}).Debug()
+	}
 	cMutex.Unlock()
-	log.WithFields(logrus.Fields{"data": s}).Debug()
 
-	satelliteConfigVersion := r.Header.Get(HeaderNprobeConfig)
-
-	if sConfigVersion, err := strconv.Atoi(satelliteConfigVersion); err == nil {
-		cMutex.RLock()
-		headConfigVersion := Config.Version
-		cMutex.RUnlock()
-
-		if int64(sConfigVersion) < headConfigVersion {
-			w.WriteHeader(204)
-		}
-	} else {
-		log.Infof("Submitted Config version is weird: %s", satelliteConfigVersion)
+	if configOutdated {
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
