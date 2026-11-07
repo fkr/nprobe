@@ -50,3 +50,13 @@ func SecureCompareStrings(a, b string) bool {
 	// subtle.ConstantTimeCompare returns 1 if equal, 0 if not equal
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
+
+// CheckSecret verifies a client-provided secret against the configured one.
+// Unlike SecureCompareStrings it fails closed: an unset (empty) configured
+// secret or an empty provided secret never authenticates.
+func CheckSecret(provided, expected string) bool {
+	if expected == "" || provided == "" {
+		return false
+	}
+	return SecureCompareStrings(provided, expected)
+}

@@ -124,3 +124,27 @@ func TestSecureCompareStringsSymmetry(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckSecret verifies that empty secrets never authenticate
+func TestCheckSecret(t *testing.T) {
+	tests := []struct {
+		name     string
+		provided string
+		expected string
+		want     bool
+	}{
+		{"both empty", "", "", false},
+		{"configured empty", "secret", "", false},
+		{"provided empty", "", "secret", false},
+		{"match", "secret123", "secret123", true},
+		{"mismatch", "secret123", "secret456", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CheckSecret(tt.provided, tt.expected); got != tt.want {
+				t.Errorf("CheckSecret(%q, %q) = %v, want %v", tt.provided, tt.expected, got, tt.want)
+			}
+		})
+	}
+}

@@ -617,7 +617,7 @@ func GetSatellite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if SecureCompareStrings(r.Header.Get(HeaderAuthorization), satellite.Secret) {
+	if CheckSecret(r.Header.Get(HeaderAuthorization), satellite.Secret) {
 
 		sJson, _ := json.Marshal(satellite)
 		var sConfig SatelliteConfig
@@ -845,7 +845,7 @@ func GetTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !SecureCompareStrings(r.Header.Get(HeaderAuthorization), satellite.Secret) {
+	if !CheckSecret(r.Header.Get(HeaderAuthorization), satellite.Secret) {
 		cMutex.RUnlock()
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
@@ -920,7 +920,7 @@ func SubmitTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !SecureCompareStrings(r.Header.Get(HeaderAuthorization), satellite.Secret) {
+	if !CheckSecret(r.Header.Get(HeaderAuthorization), satellite.Secret) {
 		handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
 		return
 	}
@@ -1030,7 +1030,7 @@ func authMiddleware(next http.Handler) http.Handler {
 		configAuth := Config.Authorization
 		cMutex.RUnlock()
 
-		if SecureCompareStrings(r.Header.Get(HeaderAuthorization), configAuth) {
+		if CheckSecret(r.Header.Get(HeaderAuthorization), configAuth) {
 			next.ServeHTTP(w, r)
 		} else {
 			handleError(w, http.StatusForbidden, r.RequestURI, "You're not allowed here", nil)
@@ -1052,7 +1052,7 @@ func HealthRequest(w http.ResponseWriter, r *http.Request) {
 	configAuth := Config.Authorization
 	cMutex.RUnlock()
 
-	if SecureCompareStrings(authHeader, configAuth) {
+	if CheckSecret(authHeader, configAuth) {
 		authedRequest = true
 	}
 
@@ -1202,7 +1202,12 @@ func parseConfig(configPtr *string) {
 	}
 
 	if Config.Authorization == "" {
-		log.Warn("Running without authorization")
+		log.Warn("No authorization configured - admin endpoints (/config, satellite management) are disabled")
+	}
+	for name, s := range Config.Satellites {
+		if s.Secret == "" {
+			log.Warnf("Satellite %s has no secret configured - it will be unable to authenticate", name)
+		}
 	}
 
 	// set Version of config file to NOW
